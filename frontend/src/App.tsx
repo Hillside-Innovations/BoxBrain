@@ -328,12 +328,22 @@ function BoxDetailCard(props: {
       <form className="form" onSubmit={onUploadVideo}>
         <div className="field">
           <div className="field__label">Scan video (5–10 seconds)</div>
-          <input
-            className="input"
-            type="file"
-            accept="video/*"
-            onChange={(e) => setVideoFile(e.currentTarget.files?.[0] ?? null)}
-          />
+          <span className="input--file-wrap">
+            <input
+              id={`video-${box.id}`}
+              className="input--file"
+              type="file"
+              accept="video/*"
+              onChange={(e) => setVideoFile(e.currentTarget.files?.[0] ?? null)}
+            />
+            <label htmlFor={`video-${box.id}`} className="input--file-label">
+              {videoFile ? (
+                <span className="input--file-label__filename">{videoFile.name}</span>
+              ) : (
+                'Choose video file…'
+              )}
+            </label>
+          </span>
           <div className="field__help">
             Tip: slowly pan inside the open box. After upload, items become searchable.
           </div>
@@ -436,7 +446,13 @@ function SearchScreen(props: { boxes: BoxResponse[]; onSelectBox: (id: number) =
                 onClick={() => onSelectBox(hit.box_id)}
               >
                 <div className="listItem__title">{hit.box_label}</div>
-                <div className="listItem__subtitle">Score {hit.score}</div>
+                <div className="listItem__subtitle">
+                  <span className="listItem__score">
+                    {typeof hit.score === 'number' && hit.score <= 1
+                      ? `${Math.round(hit.score * 100)}% match`
+                      : `Score ${hit.score}`}
+                  </span>
+                </div>
               </button>
             ))}
           </div>

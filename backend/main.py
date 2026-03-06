@@ -8,12 +8,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
+from reindex import reindex_vector_store
 from api import boxes_router, search_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    n = await reindex_vector_store()
+    if n:
+        print(f"Reindexed {n} box(es) into vector store for search.")
     yield
     # shutdown: nothing to close (SQLite/ChromaDB are file-based)
 

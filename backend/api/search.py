@@ -13,7 +13,7 @@ async def search(q: str = Query(..., min_length=1)):
     es = EmbeddingService()
     query_embedding = es.embed([q])[0]
     store = get_vector_store()
-    hits = store.search(query_embedding, n_results=10)
+    hits = store.search(query_embedding, n_results=20)
     return {
         "query": q,
         "results": [
