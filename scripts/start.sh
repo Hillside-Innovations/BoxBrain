@@ -17,16 +17,25 @@ lan_ip() {
   fi
 }
 
-# Backend
-if [ ! -d "backend/.venv" ]; then
-  echo "Backend venv not found. Run: cd backend && python -m venv .venv && pip install -r requirements.txt"
-  exit 1
+# Backend: ensure venv exists and deps are installed
+BACKEND_DIR="$ROOT/backend"
+if [ ! -d "$BACKEND_DIR/.venv" ]; then
+  echo "Backend venv not found. Creating venv and installing dependencies..."
+  PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
+  if [ -z "$PYTHON" ]; then
+    echo "Python not found. Install Python 3.11+ and ensure python3 or python is on PATH."
+    exit 1
+  fi
+  (cd "$BACKEND_DIR" && "$PYTHON" -m venv .venv && .venv/bin/pip install -r requirements.txt) || exit 1
+  echo "Backend venv ready."
 fi
+# Ensure dependencies are installed (e.g. if venv existed but packages were missing)
+(cd "$BACKEND_DIR" && .venv/bin/pip install -q -r requirements.txt) || true
 
 echo "Starting backend (http://127.0.0.1:8000) ..."
 echo "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
 (
-  cd backend
+  cd "$BACKEND_DIR"
   . .venv/bin/activate
   uvicorn main:app --host 0.0.0.0 --port 8000
 ) &
@@ -63,10 +72,11 @@ if [ -n "$LAN_IP" ]; then
   echo ""
 fi
 
-# Frontend
+# Frontend: ensure node_modules exists
 if [ ! -d "frontend/node_modules" ]; then
-  echo "Frontend deps not installed. Run: cd frontend && npm install"
-  exit 1
+  echo "Frontend deps not found. Running npm install..."
+  (cd frontend && npm install) || exit 1
+  echo "Frontend deps ready."
 fi
 
 echo "Starting frontend (http://localhost:5173) ..."

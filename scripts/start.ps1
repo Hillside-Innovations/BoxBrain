@@ -16,15 +16,31 @@ if (-not $ScriptDir) {
 $Root = Split-Path -Parent $ScriptDir
 Set-Location $Root
 
-$BackendVenvPython = Join-Path $Root "backend\.venv\Scripts\python.exe"
+$BackendDir = Join-Path $Root "backend"
+$BackendVenvPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
+$BackendVenvPip = Join-Path $BackendDir ".venv\Scripts\pip.exe"
+
+# Ensure backend venv exists and deps are installed
 if (-not (Test-Path $BackendVenvPython)) {
-    Write-Host "Backend venv not found. Run: cd backend; python -m venv .venv; pip install -r requirements.txt"
-    exit 1
+    Write-Host "Backend venv not found. Creating venv and installing dependencies..."
+    $py = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $py) {
+        Write-Host "Python not found. Install Python 3.11+ and ensure python is on PATH."
+        exit 1
+    }
+    & $py.Source -m venv (Join-Path $BackendDir ".venv")
+    if (-not (Test-Path $BackendVenvPip)) {
+        Write-Host "venv creation failed."
+        exit 1
+    }
+    & $BackendVenvPip install -r (Join-Path $BackendDir "requirements.txt")
+    Write-Host "Backend venv ready."
 }
+# Ensure dependencies are installed (e.g. if venv existed but packages were missing)
+& $BackendVenvPython -m pip install -q -r (Join-Path $BackendDir "requirements.txt") 2>$null
 
 Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
-$BackendDir = Join-Path $Root "backend"
 $BackendJob = Start-Job -ScriptBlock {
     Set-Location $using:BackendDir
     & $using:BackendVenvPython -m uvicorn main:app --host 0.0.0.0 --port 8000
@@ -81,16 +97,18 @@ try {
     }
 
     $FrontendDir = Join-Path $Root "frontend"
-    if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
-        Write-Host "Frontend deps not installed. Run: cd frontend; npm install"
-        Stop-Job $BackendJob; Remove-Job $BackendJob
-        exit 1
-    }
     $npm = Get-Command npm -ErrorAction SilentlyContinue
     if (-not $npm) {
         Write-Host "npm not found on PATH. Install Node.js and ensure npm is available."
         Stop-Job $BackendJob; Remove-Job $BackendJob
         exit 1
+    }
+    if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
+        Write-Host "Frontend deps not found. Running npm install..."
+        Set-Location $FrontendDir
+        & npm install
+        Set-Location $Root
+        Write-Host "Frontend deps ready."
     }
 
     Write-Host "Starting frontend (http://localhost:5173) ..."
