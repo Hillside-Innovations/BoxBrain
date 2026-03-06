@@ -77,6 +77,7 @@ class ChromaStore:
             bid
             for bid, best in best_by_box.items()
             if count_strong_by_box.get(bid, 0) >= settings.search_min_frames
+            or best >= settings.search_strong_match_score
         ]
         if not eligible_box_ids:
             return []

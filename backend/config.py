@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     search_min_frames: int = 2
     # Per-frame score threshold [0,1] for counting a frame as a "strong" match.
     search_frame_score_threshold: float = 0.6
+    # If a box has at least one frame with this score or higher, it qualifies even with fewer strong frames (e.g. label-only match).
+    search_strong_match_score: float = 0.9
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)

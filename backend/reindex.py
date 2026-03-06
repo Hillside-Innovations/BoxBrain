@@ -25,8 +25,11 @@ async def reindex_vector_store() -> int:
             texts = [r[0] for r in await cur.fetchall()]
             if not texts:
                 continue
-            embeddings = es.embed(texts)
-            store.add(box_id, label, texts, embeddings)
+            # Add label-aware document so search by box label matches this box
+            label_doc = f'Box labeled "{label}". Contents: ' + ("; ".join(texts[:5]) if texts else "various items.")
+            texts_with_label = texts + [label_doc]
+            embeddings = es.embed(texts_with_label)
+            store.add(box_id, label, texts_with_label, embeddings)
             count += 1
         return count
     finally:

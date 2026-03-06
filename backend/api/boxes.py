@@ -244,11 +244,13 @@ async def upload_box_video(
     raw_descriptions = vs.describe_frames(frames)
     # Clean up captions a bit to reduce noise before embedding/search
     descriptions = [_normalize_caption(t) for t in raw_descriptions]
-    # Embed and store in ChromaDB / vector store
+    # Add a label-aware document so search by box label (e.g. "box 1") matches this box
+    label_doc = f'Box labeled "{box_label}". Contents: ' + (descriptions[0] if descriptions else "various items.")
+    texts_for_store = descriptions + [label_doc]
     es = EmbeddingService()
-    embeddings = es.embed(descriptions)
+    embeddings = es.embed(texts_for_store)
     store = get_vector_store()
-    store.add(box_id, box_label, descriptions, embeddings)
+    store.add(box_id, box_label, texts_for_store, embeddings)
     # Store contents for display (replace any previous)
     await conn.execute("DELETE FROM box_contents WHERE box_id = ?", (box_id,))
     for text in descriptions:

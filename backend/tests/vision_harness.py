@@ -90,8 +90,11 @@ def run_vision_harness(
             if not descriptions:
                 continue
             store.delete_box(box_id)  # clear any previous
-            embeddings = es.embed(descriptions)
-            store.add(box_id, label, descriptions, embeddings)
+            # Add label-aware document so label queries (e.g. "box 1") match this box
+            label_doc = f'Box labeled "{label}". Contents: ' + (descriptions[0] if descriptions else "various items.")
+            texts_for_store = descriptions + [label_doc]
+            embeddings = es.embed(texts_for_store)
+            store.add(box_id, label, texts_for_store, embeddings)
         # Label-based: query with box label, report top result
         canned = [label for _, label, _ in results if label][:5]
         print("\nSearch benchmark — label queries (top result per query):")

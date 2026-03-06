@@ -58,11 +58,16 @@ class MemoryVectorStore:
             if norm >= settings.search_frame_score_threshold:
                 count_strong_by_box[bid] = count_strong_by_box.get(bid, 0) + 1
 
-        # Filter boxes that don't have enough strong frames
+        # Normalize best score to [0,1] for comparison with threshold
+        def norm_score(raw: float) -> float:
+            return (max(-1.0, min(1.0, float(raw))) + 1.0) / 2.0
+
+        # Filter boxes: need enough strong frames, or one very strong match (e.g. label query)
         eligible_box_ids = [
             bid
             for bid, best in best_by_box.items()
             if count_strong_by_box.get(bid, 0) >= settings.search_min_frames
+            or norm_score(best) >= settings.search_strong_match_score
         ]
         if not eligible_box_ids:
             return []
