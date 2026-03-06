@@ -328,6 +328,17 @@ function BoxDetailCard(props: {
         </div>
       ) : null}
 
+      {box.diagnostics ? (
+        <div className="diagnostics">
+          <div className="field__label">Capture quality</div>
+          <ul className="diagnostics__list">
+            <li><strong>Frames</strong>: {box.diagnostics.frame_count}</li>
+            <li><strong>Brightness</strong>: {(box.diagnostics.brightness * 100).toFixed(0)}%</li>
+            <li><strong>Sharpness</strong>: {box.diagnostics.blur_score.toFixed(1)} (higher = sharper)</li>
+          </ul>
+        </div>
+      ) : null}
+
       {box.contents && box.contents.length > 0 ? (
         <div className="box-contents">
           <div className="field__label">Items in this box</div>

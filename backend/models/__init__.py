@@ -1,3 +1,3 @@
-from .box import BoxCreate, BoxUpdate, BoxInDB, BoxResponse
+from .box import BoxCreate, BoxUpdate, BoxInDB, BoxResponse, CaptureDiagnostics
 
-__all__ = ["BoxCreate", "BoxUpdate", "BoxInDB", "BoxResponse"]
+__all__ = ["BoxCreate", "BoxUpdate", "BoxInDB", "BoxResponse", "CaptureDiagnostics"]

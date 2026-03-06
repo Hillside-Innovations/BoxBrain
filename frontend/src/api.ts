@@ -1,3 +1,9 @@
+export type CaptureDiagnostics = {
+  frame_count: number
+  brightness: number
+  blur_score: number
+}
+
 export type BoxResponse = {
   id: number
   label: string
@@ -6,6 +12,7 @@ export type BoxResponse = {
   updated_at: string
   has_video: boolean
   contents: string[]
+  diagnostics?: CaptureDiagnostics | null
 }
 
 /** URL for the box scan image (first frame). Append cache-buster if needed. */

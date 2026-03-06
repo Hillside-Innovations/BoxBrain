@@ -7,8 +7,9 @@ from fastapi.responses import FileResponse
 
 from config import settings
 from database import get_db
-from models import BoxCreate, BoxUpdate, BoxResponse
+from models import BoxCreate, BoxUpdate, BoxResponse, CaptureDiagnostics
 from services import VideoProcessor, VisionService, EmbeddingService
+from services.diagnostics import compute_capture_diagnostics
 from services.vector_store import get_vector_store
 
 
@@ -52,10 +53,11 @@ async def create_box(body: BoxCreate, conn: aiosqlite.Connection = Depends(db_co
         )
         await conn.commit()
         row = await conn.execute(
-            "SELECT id, label, location, created_at, updated_at, video_filename FROM boxes WHERE id = ?",
+            "SELECT id, label, location, created_at, updated_at, video_filename, scan_frame_count, scan_brightness, scan_blur_score FROM boxes WHERE id = ?",
             (cursor.lastrowid,),
         )
         r = await row.fetchone()
+        diag = _diagnostics_from_row(r, 5)
         return BoxResponse(
             id=r[0],
             label=r[1],
@@ -64,11 +66,22 @@ async def create_box(body: BoxCreate, conn: aiosqlite.Connection = Depends(db_co
             updated_at=r[4],
             has_video=bool(r[5]),
             contents=[],
+            diagnostics=diag,
         )
     except aiosqlite.IntegrityError as e:
         if "UNIQUE" in str(e):
             raise HTTPException(status_code=409, detail="Box with this label already exists")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+def _diagnostics_from_row(row: tuple, video_filename_idx: int) -> CaptureDiagnostics | None:
+    """Build CaptureDiagnostics from row if scan columns present. Row has ... video_filename, scan_frame_count, scan_brightness, scan_blur_score."""
+    if len(row) <= video_filename_idx + 3:
+        return None
+    fc, bright, blur = row[video_filename_idx + 1], row[video_filename_idx + 2], row[video_filename_idx + 3]
+    if fc is None or bright is None or blur is None:
+        return None
+    return CaptureDiagnostics(frame_count=int(fc), brightness=float(bright), blur_score=float(blur))
 
 
 async def _contents_for_boxes(conn: aiosqlite.Connection, box_ids: list[int]) -> dict[int, list[str]]:
@@ -88,7 +101,7 @@ async def _contents_for_boxes(conn: aiosqlite.Connection, box_ids: list[int]) ->
 @router.get("", response_model=list[BoxResponse])
 async def list_boxes(conn: aiosqlite.Connection = Depends(db_conn)):
     cursor = await conn.execute(
-        "SELECT id, label, location, created_at, updated_at, video_filename FROM boxes ORDER BY id"
+        "SELECT id, label, location, created_at, updated_at, video_filename, scan_frame_count, scan_brightness, scan_blur_score FROM boxes ORDER BY id"
     )
     rows = await cursor.fetchall()
     box_ids = [r[0] for r in rows]
@@ -102,6 +115,7 @@ async def list_boxes(conn: aiosqlite.Connection = Depends(db_conn)):
             updated_at=r[4],
             has_video=bool(r[5]),
             contents=contents_map.get(r[0], []),
+            diagnostics=_diagnostics_from_row(r, 5),
         )
         for r in rows
     ]
@@ -110,7 +124,7 @@ async def list_boxes(conn: aiosqlite.Connection = Depends(db_conn)):
 @router.get("/{box_id}", response_model=BoxResponse)
 async def get_box(box_id: int, conn: aiosqlite.Connection = Depends(db_conn)):
     cursor = await conn.execute(
-        "SELECT id, label, location, created_at, updated_at, video_filename FROM boxes WHERE id = ?",
+        "SELECT id, label, location, created_at, updated_at, video_filename, scan_frame_count, scan_brightness, scan_blur_score FROM boxes WHERE id = ?",
         (box_id,),
     )
     r = await cursor.fetchone()
@@ -125,6 +139,7 @@ async def get_box(box_id: int, conn: aiosqlite.Connection = Depends(db_conn)):
         updated_at=r[4],
         has_video=bool(r[5]),
         contents=contents_map.get(box_id, []),
+        diagnostics=_diagnostics_from_row(r, 5),
     )
 
 
@@ -222,6 +237,8 @@ async def upload_box_video(
     frames = vp.extract_frames(video_path, box_id, max_frames=10)
     if not frames:
         raise HTTPException(status_code=400, detail="Could not extract frames from video")
+    # Per-scan quality report
+    diagnostics = compute_capture_diagnostics(frames)
     # Describe frames (vision)
     vs = VisionService()
     raw_descriptions = vs.describe_frames(frames)
@@ -236,10 +253,10 @@ async def upload_box_video(
     await conn.execute("DELETE FROM box_contents WHERE box_id = ?", (box_id,))
     for text in descriptions:
         await conn.execute("INSERT INTO box_contents (box_id, item_text) VALUES (?, ?)", (box_id, text))
-    # Update box record
+    # Update box record and diagnostics
     await conn.execute(
-        "UPDATE boxes SET video_filename = ?, updated_at = datetime('now') WHERE id = ?",
-        (safe_name, box_id),
+        "UPDATE boxes SET video_filename = ?, scan_frame_count = ?, scan_brightness = ?, scan_blur_score = ?, updated_at = datetime('now') WHERE id = ?",
+        (safe_name, diagnostics["frame_count"], diagnostics["brightness"], diagnostics["blur_score"], box_id),
     )
     await conn.commit()
     return await get_box(box_id, conn)

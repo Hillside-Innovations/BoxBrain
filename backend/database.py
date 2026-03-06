@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS boxes (
     location TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    video_filename TEXT
+    video_filename TEXT,
+    scan_frame_count INTEGER,
+    scan_brightness REAL,
+    scan_blur_score REAL
 );
 """
 SCHEMA_BOX_CONTENTS = """
@@ -32,6 +35,17 @@ async def get_db() -> aiosqlite.Connection:
     return conn
 
 
+async def _ensure_diagnostics_columns(conn: aiosqlite.Connection) -> None:
+    """Add scan diagnostics columns if missing (existing DBs)."""
+    cursor = await conn.execute("PRAGMA table_info(boxes)")
+    rows = await cursor.fetchall()
+    names = [row[1] for row in rows]
+    for col, typ in [("scan_frame_count", "INTEGER"), ("scan_brightness", "REAL"), ("scan_blur_score", "REAL")]:
+        if col not in names:
+            await conn.execute(f"ALTER TABLE boxes ADD COLUMN {col} {typ}")
+            await conn.commit()
+
+
 async def init_db() -> None:
     conn = await get_db()
     try:
@@ -39,5 +53,6 @@ async def init_db() -> None:
         await conn.execute(SCHEMA_BOX_CONTENTS)
         await conn.execute(SCHEMA_INDEX)
         await conn.commit()
+        await _ensure_diagnostics_columns(conn)
     finally:
         await conn.close()

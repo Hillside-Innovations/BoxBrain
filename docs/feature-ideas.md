@@ -35,7 +35,6 @@ This file collects possible features beyond the MVP. It is a grab bag of ideas, 
 
 ## Reliability and tooling
 
-- **Capture diagnostics**: per‑scan quality report (frame count, brightness, blur).
 - **Test harness**: canned boxes + queries to benchmark changes to vision/search.
 - **Sync between machines**: optional sync of the local database/chroma store across devices.
 
