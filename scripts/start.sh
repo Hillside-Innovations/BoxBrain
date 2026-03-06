@@ -30,7 +30,8 @@ if [ ! -d "$BACKEND_DIR/.venv" ]; then
   echo "Backend venv ready."
 fi
 # Ensure dependencies are installed (e.g. if venv existed but packages were missing)
-(cd "$BACKEND_DIR" && .venv/bin/pip install -q -r requirements.txt) || true
+echo "Ensuring backend dependencies (pip install -r requirements.txt)..."
+(cd "$BACKEND_DIR" && .venv/bin/pip install -r requirements.txt) || true
 
 echo "Starting backend (http://127.0.0.1:8000) ..."
 echo "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"

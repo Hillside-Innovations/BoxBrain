@@ -37,7 +37,8 @@ if (-not (Test-Path $BackendVenvPython)) {
     Write-Host "Backend venv ready."
 }
 # Ensure dependencies are installed (e.g. if venv existed but packages were missing)
-& $BackendVenvPython -m pip install -q -r (Join-Path $BackendDir "requirements.txt") 2>$null
+Write-Host "Ensuring backend dependencies (pip install -r requirements.txt)..."
+& $BackendVenvPython -m pip install -r (Join-Path $BackendDir "requirements.txt")
 
 Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
