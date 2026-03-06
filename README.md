@@ -77,7 +77,7 @@ From the project root, run one of:
 | Platform        | Command                |
 |----------------|------------------------|
 | **macOS/Linux** | `./scripts/start.sh`   |
-| **Windows**     | `.\scripts\start.ps1`  (PowerShell; uses `backend\.venv\Scripts\python.exe`, no `activate` needed) |
+| **Windows**     | `scripts\start.bat` from CMD or PowerShell (or `.\scripts\start.ps1` in PowerShell only). Do **not** run `start.ps1` in Git Bash — use the `.bat` or open PowerShell. |
 
 The script starts the backend, waits for it to be ready, then starts the frontend. The first video upload may download ~1GB (BLIP model) if not cached. To use placeholder descriptions instead, run the backend with `MOCK_VISION=1` (see [backend/README.md](backend/README.md)).
 

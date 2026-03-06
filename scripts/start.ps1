@@ -1,6 +1,6 @@
 # Start backend and frontend for local development (Windows).
-# Backend: http://127.0.0.1:8000  Frontend: http://localhost:5173
-# Press Ctrl+C to stop; backend process will be terminated.
+# Run with PowerShell only (e.g. "powershell -File .\scripts\start.ps1" or run scripts\start.bat).
+# Do not run this file in Git Bash or sh — you'll get "command not found" / syntax errors.
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyScript.Path)
