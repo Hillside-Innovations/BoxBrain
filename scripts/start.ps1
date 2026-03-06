@@ -70,7 +70,10 @@ try {
         Write-Host "Backend did not start in time. Check backend/README.md"
         Write-Host ""
         Write-Host "Backend job output (uvicorn/startup errors):"
-        Receive-Job $BackendJob 2>&1 | ForEach-Object { Write-Host "  $($_.ToString())" }
+        Receive-Job $BackendJob 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) { Write-Host "  $($_.Exception.Message)" }
+            else { Write-Host "  $_" }
+        }
         Stop-Job $BackendJob -ErrorAction SilentlyContinue
         Remove-Job $BackendJob -ErrorAction SilentlyContinue
         exit 1
