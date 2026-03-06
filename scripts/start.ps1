@@ -44,6 +44,8 @@ Write-Host "Ensuring backend dependencies (pip install -r requirements.txt)..."
 & $BackendVenvPython -m pip install -r (Join-Path $BackendDir "requirements.txt")
 
 Write-Host "Starting backend (http://127.0.0.1:8000) ..."
+$pyVersion = & $BackendVenvPython --version 2>&1
+Write-Host "  Python: $pyVersion"
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
 # Use venv's python.exe; run via Start-Process with stderr to file so we can show raw output (no PowerShell wrapping)
 $VenvPython = (Resolve-Path $BackendVenvPython).Path

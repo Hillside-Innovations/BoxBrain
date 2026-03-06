@@ -37,6 +37,7 @@ echo "Ensuring backend dependencies (pip install -r requirements.txt)..."
 (cd "$BACKEND_DIR" && .venv/bin/pip install -r requirements.txt) || true
 
 echo "Starting backend (http://127.0.0.1:8000) ..."
+echo "  Python: $("$BACKEND_DIR/.venv/bin/python" --version 2>&1)"
 echo "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
 (
   cd "$BACKEND_DIR"
