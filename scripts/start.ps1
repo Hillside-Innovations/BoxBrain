@@ -1,6 +1,10 @@
 # Start backend and frontend for local development (Windows).
 # Run with PowerShell only (e.g. "powershell -File .\scripts\start.ps1" or run scripts\start.bat).
 # Do not run this file in Git Bash or sh — you'll get "command not found" / syntax errors.
+# Optional: -VerboseOutput or -Verbose to show health-check attempts and backend output on failure.
+
+param([switch]$VerboseOutput)
+if ($VerbosePreference -eq "Continue") { $VerboseOutput = $true }
 
 $ErrorActionPreference = "Stop"
 # Project root: parent of the folder containing this script (works when run via -File or .bat)
@@ -31,15 +35,22 @@ try {
     $max = 10
     $ok = $false
     for ($i = 1; $i -le $max; $i++) {
+        if ($VerboseOutput) { Write-Host "  Waiting for backend... attempt $i/$max" }
         Start-Sleep -Seconds 1
         try {
             $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 2
             if ($r.StatusCode -eq 200) { $ok = $true; break }
-        } catch {}
+        } catch {
+            if ($VerboseOutput) { Write-Host "    $($_.Exception.Message)" }
+        }
     }
     if (-not $ok) {
         Write-Host "Backend did not start in time. Check backend/README.md"
-        Stop-Job $BackendJob; Remove-Job $BackendJob
+        Write-Host ""
+        Write-Host "Backend job output (uvicorn/startup errors):"
+        Receive-Job $BackendJob 2>&1 | ForEach-Object { Write-Host "  $_" }
+        Stop-Job $BackendJob -ErrorAction SilentlyContinue
+        Remove-Job $BackendJob -ErrorAction SilentlyContinue
         exit 1
     }
     Write-Host "Backend ready at http://127.0.0.1:8000"
