@@ -12,6 +12,19 @@ import {
   type SearchHit,
 } from './api'
 
+const THEME_KEY = 'boxbrain-theme'
+type Theme = 'light' | 'dark'
+
+function getStoredTheme(): Theme {
+  try {
+    const s = localStorage.getItem(THEME_KEY)
+    if (s === 'light' || s === 'dark') return s
+  } catch {
+    /* ignore */
+  }
+  return 'dark'
+}
+
 type Tab = 'boxes' | 'search'
 
 function formatBoxSubtitle(box: BoxResponse) {
@@ -22,12 +35,22 @@ function formatBoxSubtitle(box: BoxResponse) {
 }
 
 function App() {
+  const [theme, setTheme] = useState<Theme>(getStoredTheme)
   const [tab, setTab] = useState<Tab>('boxes')
   const [boxes, setBoxes] = useState<BoxResponse[] | null>(null)
   const [boxesError, setBoxesError] = useState<string | null>(null)
   const [boxesLoading, setBoxesLoading] = useState(false)
 
   const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem(THEME_KEY, theme)
+    } catch {
+      /* ignore */
+    }
+  }, [theme])
 
   const selectedBox = useMemo(
     () => boxes?.find((b) => b.id === selectedBoxId) ?? null,
@@ -56,7 +79,18 @@ function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar__title">BoxBrain</div>
+        <div className="topbar__row">
+          <div className="topbar__title">BoxBrain</div>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
         <div className="topbar__tabs" role="tablist" aria-label="Primary">
           <button
             type="button"

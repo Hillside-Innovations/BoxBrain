@@ -1,4 +1,6 @@
-:root {
+/* Dark theme (default) */
+:root,
+[data-theme='dark'] {
   --bg: #0a0f18;
   --surface: rgba(255, 255, 255, 0.06);
   --surface-2: rgba(255, 255, 255, 0.1);
@@ -32,6 +34,28 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Light theme */
+[data-theme='light'] {
+  --bg: #f2f5f9;
+  --surface: rgba(0, 0, 0, 0.04);
+  --surface-2: rgba(0, 0, 0, 0.06);
+  --surface-hover: rgba(0, 0, 0, 0.08);
+  --text: rgba(15, 23, 36, 0.94);
+  --muted: rgba(15, 23, 36, 0.58);
+  --border: rgba(0, 0, 0, 0.1);
+  --border-focus: rgba(0, 140, 180, 0.6);
+  --primary: #0891b2;
+  --primary-dim: rgba(8, 145, 178, 0.15);
+  --primary-ink: #fff;
+  --danger: #dc2626;
+  --danger-dim: rgba(220, 38, 38, 0.12);
+
+  background:
+    radial-gradient(1400px 700px at 8% -10%, rgba(8, 145, 178, 0.08), transparent 55%),
+    radial-gradient(1000px 500px at 92% 5%, rgba(167, 139, 250, 0.06), transparent 50%),
+    var(--bg);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -59,9 +83,24 @@ body {
   z-index: 10;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background: linear-gradient(to bottom, rgba(10, 15, 24, 0.97), rgba(10, 15, 24, 0.85));
   border-bottom: 1px solid var(--border);
   padding: 16px 16px 12px;
+}
+
+[data-theme='dark'] .topbar,
+:root .topbar {
+  background: linear-gradient(to bottom, rgba(10, 15, 24, 0.97), rgba(10, 15, 24, 0.85));
+}
+
+[data-theme='light'] .topbar {
+  background: linear-gradient(to bottom, rgba(242, 245, 249, 0.97), rgba(242, 245, 249, 0.9));
+}
+
+.topbar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .topbar__title {
@@ -69,6 +108,27 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.theme-toggle {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.theme-toggle:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-focus);
 }
 
 .topbar__tabs {
@@ -216,13 +276,18 @@ body {
   opacity: 0.9;
 }
 
-.input:hover:not(:focus) {
+[data-theme='dark'] .input:hover:not(:focus),
+:root .input:hover:not(:focus) {
   border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme='light'] .input:hover:not(:focus) {
+  border-color: rgba(0, 0, 0, 0.2);
 }
 
 .input:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(93, 217, 247, 0.12);
+  box-shadow: 0 0 0 3px var(--primary-dim);
 }
 
 /* File input - styled wrapper in App, hide native and use label */
@@ -263,7 +328,7 @@ body {
 
 .input--file:focus + .input--file-label {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(93, 217, 247, 0.12);
+  box-shadow: 0 0 0 3px var(--primary-dim);
 }
 
 .input--file-label__filename {
@@ -304,8 +369,14 @@ body {
   border-color: transparent;
 }
 
-.button--primary:hover:not(:disabled) {
+[data-theme='dark'] .button--primary:hover:not(:disabled),
+:root .button--primary:hover:not(:disabled) {
   background: #6ee0fa;
+  filter: brightness(1.05);
+}
+
+[data-theme='light'] .button--primary:hover:not(:disabled) {
+  background: #0e7490;
   filter: brightness(1.05);
 }
 
