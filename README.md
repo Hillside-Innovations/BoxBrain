@@ -41,21 +41,69 @@ All components run **locally** on one machine for the MVP.
 
 ---
 
-## Running locally
+## Run instructions
 
-**Prerequisites:** Node.js, Python 3.11+, ffmpeg (see [backend/README.md](backend/README.md)). One-time setup: install backend deps (`cd backend && python -m venv .venv && pip install -r requirements.txt`) and frontend deps (`cd frontend && npm install`).
+### Prerequisites
 
-**Start everything (backend + frontend):**
+- **Node.js** (LTS, e.g. 20.x)
+- **Python 3.11+**
+- **ffmpeg** (on PATH; used to extract frames from video). Install via your package manager or [ffmpeg.org](https://ffmpeg.org/). See [backend/README.md](backend/README.md) if needed.
 
-- **macOS / Linux:** `./scripts/start.sh`
-- **Windows (PowerShell):** `.\scripts\start.ps1` (uses `backend\.venv\Scripts\python.exe`; no `activate` needed)
+### One-time setup
 
-- Backend: http://127.0.0.1:8000 (API and [docs](http://127.0.0.1:8000/docs))
-- Frontend: http://localhost:5173
+From the project root:
 
-The script starts the backend with the real vision model (BLIP); the first video upload may download ~1GB if not cached. To use placeholder descriptions instead, run the backend with `MOCK_VISION=1` (see backend/README.md). Press **Ctrl+C** to stop both.
+```bash
+# Backend: create venv and install dependencies
+cd backend
+python -m venv .venv
+# macOS/Linux:
+source .venv/bin/activate
+# Windows (PowerShell):
+#   .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+cd ..
 
-To run backend and frontend separately, see [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
+# Frontend: install dependencies
+cd frontend
+npm install
+cd ..
+```
+
+### Start the app
+
+From the project root, run one of:
+
+| Platform        | Command                |
+|----------------|------------------------|
+| **macOS/Linux** | `./scripts/start.sh`   |
+| **Windows**     | `.\scripts\start.ps1`  (PowerShell; uses `backend\.venv\Scripts\python.exe`, no `activate` needed) |
+
+The script starts the backend, waits for it to be ready, then starts the frontend. The first video upload may download ~1GB (BLIP model) if not cached. To use placeholder descriptions instead, run the backend with `MOCK_VISION=1` (see [backend/README.md](backend/README.md)).
+
+### URLs
+
+- **App (use this):** http://localhost:5173  
+- **API docs:** http://127.0.0.1:8000/docs  
+- **Backend health:** http://127.0.0.1:8000/health  
+
+On the same WiFi, the script prints your LAN IP so you can open the app from your phone (e.g. http://192.168.x.x:5173).
+
+### Using the app
+
+1. Open http://localhost:5173.
+2. Create a box (label + optional location).
+3. Select the box, upload a short video (5–10 s) of the open box.
+4. After processing, use the **Search** tab to find items (e.g. “screwdriver”, “passport”).
+
+### Stop
+
+Press **Ctrl+C** in the terminal to stop both backend and frontend.
+
+### Run backend or frontend only
+
+- **Backend only:** [backend/README.md](backend/README.md)  
+- **Frontend only:** [frontend/README.md](frontend/README.md)
 
 ---
 
