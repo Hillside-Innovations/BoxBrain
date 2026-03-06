@@ -1,5 +1,5 @@
 """In-memory vector store (numpy). Used when ChromaDB is unavailable (e.g. Python 3.14). Same interface as ChromaStore."""
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -46,8 +46,8 @@ class MemoryVectorStore:
         raw_scores = np.dot(vecs, q.T).flatten()
 
         # Track per-box best score (cosine in [-1, 1]) and how many frames are "strong"
-        best_by_box: dict[int, float] = {}
-        count_strong_by_box: dict[int, int] = {}
+        best_by_box: Dict[int, float] = {}
+        count_strong_by_box: Dict[int, int] = {}
 
         for idx, raw in enumerate(raw_scores):
             bid = self._box_ids[idx]

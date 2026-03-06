@@ -1,6 +1,6 @@
 """ChromaDB vector store: embeddings keyed by box_id for semantic search. Local persistence."""
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
@@ -58,9 +58,9 @@ class ChromaStore:
         if not raw or not raw["metadatas"] or not raw["metadatas"][0]:
             return []
 
-        best_by_box: dict[int, float] = {}
-        count_strong_by_box: dict[int, int] = {}
-        label_by_id: dict[int, str] = {}
+        best_by_box: Dict[int, float] = {}
+        count_strong_by_box: Dict[int, int] = {}
+        label_by_id: Dict[int, str] = {}
 
         for meta, dist in zip(raw["metadatas"][0], raw["distances"][0]):
             box_id = meta["box_id"]

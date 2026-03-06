@@ -1,11 +1,11 @@
 """Local text embeddings via sentence-transformers (open-source)."""
-from typing import List
+from typing import List, Optional
 
 from sentence_transformers import SentenceTransformer
 
 
 class EmbeddingService:
-    _model: SentenceTransformer | None = None
+    _model: Optional[SentenceTransformer] = None
 
     def _get_model(self) -> SentenceTransformer:
         if EmbeddingService._model is None:

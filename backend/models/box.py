@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,5 +39,5 @@ class BoxResponse(BaseModel):
     created_at: str
     updated_at: str
     has_video: bool = False
-    contents: list[str] = []  # detected items / frame descriptions from last scan
+    contents: List[str] = []  # detected items / frame descriptions from last scan
     diagnostics: Optional[CaptureDiagnostics] = None  # per-scan quality (frame count, brightness, blur)

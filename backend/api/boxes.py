@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict, List, Optional
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -74,7 +74,7 @@ async def create_box(body: BoxCreate, conn: aiosqlite.Connection = Depends(db_co
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def _diagnostics_from_row(row: tuple, video_filename_idx: int) -> CaptureDiagnostics | None:
+def _diagnostics_from_row(row: tuple, video_filename_idx: int) -> Optional[CaptureDiagnostics]:
     """Build CaptureDiagnostics from row if scan columns present. Row has ... video_filename, scan_frame_count, scan_brightness, scan_blur_score."""
     if len(row) <= video_filename_idx + 3:
         return None
@@ -84,8 +84,8 @@ def _diagnostics_from_row(row: tuple, video_filename_idx: int) -> CaptureDiagnos
     return CaptureDiagnostics(frame_count=int(fc), brightness=float(bright), blur_score=float(blur))
 
 
-async def _contents_for_boxes(conn: aiosqlite.Connection, box_ids: list[int]) -> dict[int, list[str]]:
-    out: dict[int, list[str]] = {bid: [] for bid in box_ids}
+async def _contents_for_boxes(conn: aiosqlite.Connection, box_ids: List[int]) -> Dict[int, List[str]]:
+    out: Dict[int, List[str]] = {bid: [] for bid in box_ids}
     if not box_ids:
         return out
     placeholders = ",".join("?" * len(box_ids))

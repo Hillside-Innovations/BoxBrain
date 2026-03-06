@@ -1,12 +1,12 @@
 """Vector store abstraction: ChromaDB when available, else in-memory (numpy) for compatibility."""
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from config import settings
 
 _store = None
 
 
-def _try_chroma() -> "ChromaStore | None":
+def _try_chroma() -> Optional["ChromaStore"]:
     try:
         from .chroma_store import ChromaStore
         return ChromaStore()
