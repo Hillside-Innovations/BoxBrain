@@ -47,10 +47,13 @@ Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 $pyVersion = & $BackendVenvPython --version 2>&1
 Write-Host "  Python: $pyVersion"
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
-# Use venv's python.exe; run via Start-Process with stderr to file so we can show raw output (no PowerShell wrapping)
+# Use venv's python.exe; run via Start-Process with stdout and stderr to files so we can show raw output on failure (no PowerShell wrapping).
+# Only stderr was captured before — uvicorn/Python often write startup and errors to stdout; both streams can be buffered, so we capture both and use PYTHONUNBUFFERED.
 $VenvPython = (Resolve-Path $BackendVenvPython).Path
+$BackendStdoutFile = Join-Path $env:TEMP "boxbrain-backend-stdout.txt"
 $BackendStderrFile = Join-Path $env:TEMP "boxbrain-backend-stderr.txt"
-$BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $BackendDir -NoNewWindow -PassThru -RedirectStandardError $BackendStderrFile
+$env:PYTHONUNBUFFERED = "1"
+$BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $BackendDir -NoNewWindow -PassThru -RedirectStandardOutput $BackendStdoutFile -RedirectStandardError $BackendStderrFile
 
 try {
     # Wait for backend to be up
@@ -69,10 +72,15 @@ try {
     if (-not $ok) {
         Write-Host "Backend did not start in time. Check backend/README.md"
         Write-Host ""
-        Write-Host "Backend stderr (uvicorn/startup errors):"
+        Write-Host "Backend stdout (uvicorn/Python startup):"
+        if (Test-Path $BackendStdoutFile) {
+            Get-Content $BackendStdoutFile | ForEach-Object { Write-Host "  $_" }
+        } else { Write-Host "  (none)" }
+        Write-Host ""
+        Write-Host "Backend stderr (errors/tracebacks):"
         if (Test-Path $BackendStderrFile) {
             Get-Content $BackendStderrFile | ForEach-Object { Write-Host "  $_" }
-        }
+        } else { Write-Host "  (none)" }
         if ($BackendProcess -and -not $BackendProcess.HasExited) { Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue }
         exit 1
     }
