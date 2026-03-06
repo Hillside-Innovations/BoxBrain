@@ -141,6 +141,25 @@ pytest tests/ -v
 
 Uses a temporary directory for DB and storage (see `conftest.py`). No ffmpeg or real video required for the current tests.
 
+### Vision test harness
+
+The **vision harness** runs the full vision pipeline (frame extraction + BLIP or mock) on videos that are already in your DB (boxes with a `video_filename`). Use it to benchmark or validate vision/search changes.
+
+From `backend/` (uses your real `data/` DB and uploads):
+
+```bash
+# Vision only (extract frames + describe); frames written to data/harness_frames/
+python -m tests.vision_harness
+
+# Vision + search benchmark (re-indexes fixtures into vector store, runs canned queries)
+python -m tests.vision_harness --search
+
+# Use mock vision (no BLIP download)
+MOCK_VISION=1 python -m tests.vision_harness
+```
+
+Requires **ffmpeg** on PATH. Fixtures are loaded from `boxes` rows that have a `video_filename`; the video file must exist under `data/uploads/`.
+
 ---
 
 ## Quick test (with server running)

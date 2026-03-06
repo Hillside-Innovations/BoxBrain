@@ -115,6 +115,7 @@ Detailed product and design docs live in **`/docs`**:
 - **[mvp-definition.md](docs/mvp-definition.md)** — Measurable v1 success
 - **[tech-stack.md](docs/tech-stack.md)** — Components and roles
 - **[testing-plan.md](docs/testing-plan.md)** — Real-world validation approach
+- **[vision-baseline.md](docs/vision-baseline.md)** — Recorded vision harness runs (baseline for perf/quality)
 - **[api-for-frontend.md](docs/api-for-frontend.md)** — API contract and examples for frontend integration
 
 ---

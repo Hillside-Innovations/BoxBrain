@@ -1,7 +1,7 @@
 """Extract image frames from uploaded video using ffmpeg. Local CLI, no cloud."""
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from config import settings
 
@@ -10,9 +10,15 @@ class VideoProcessor:
     def __init__(self) -> None:
         self.frames_dir = settings.frames_dir
 
-    def extract_frames(self, video_path: Path, box_id: int, max_frames: int = 10) -> List[Path]:
-        """Extract up to max_frames from video; save under data/frames/{box_id}/. Returns paths."""
-        out_dir = self.frames_dir / str(box_id)
+    def extract_frames(
+        self,
+        video_path: Path,
+        box_id: int,
+        max_frames: int = 10,
+        out_dir: Optional[Path] = None,
+    ) -> List[Path]:
+        """Extract up to max_frames from video; save under out_dir or data/frames/{box_id}/. Returns paths."""
+        out_dir = out_dir or (self.frames_dir / str(box_id))
         out_dir.mkdir(parents=True, exist_ok=True)
         # ffmpeg: 1 frame per second (or spread over duration), max max_frames
         # -i input, -vf fps=1 (1 per sec), -vframes N
