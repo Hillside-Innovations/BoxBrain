@@ -7,12 +7,17 @@ with canned queries and reports results.
 
 Run from backend dir:
   python -m tests.vision_harness              # vision only
-  python -m tests.vision_harness --search      # vision + search benchmark
+  python -m tests.vision_harness --search      # vision + search benchmark (labels + content-based)
   MOCK_VISION=1 python -m tests.vision_harness # use mock vision (no BLIP download)
+
+Content-based queries: derived from BLIP descriptions (query with a box's own
+caption, expect that box to rank) and optionally from tests/vision_content_queries.json
+([{"query": "screwdriver", "expected_box_id": 10}, ...]).
 
 Requires: ffmpeg on PATH. Uses config.settings (data dir, DB, uploads).
 """
 import argparse
+import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -87,9 +92,9 @@ def run_vision_harness(
             store.delete_box(box_id)  # clear any previous
             embeddings = es.embed(descriptions)
             store.add(box_id, label, descriptions, embeddings)
-        # Canned queries: map query -> expected box_id (optional; we just report top result)
-        canned = [label for _, label, _ in results if label][:5]  # use labels as queries
-        print("\nSearch benchmark (top result per query):")
+        # Label-based: query with box label, report top result
+        canned = [label for _, label, _ in results if label][:5]
+        print("\nSearch benchmark — label queries (top result per query):")
         for q in canned:
             emb = es.embed([q])
             hits = store.search(emb[0], n_results=3)
@@ -98,6 +103,56 @@ def run_vision_harness(
                 print(f"  q={q!r} -> box_id={top[0]} label={top[1]!r} score={top[2]:.3f}")
             else:
                 print(f"  q={q!r} -> (no results)")
+
+        # Content-based: query with BLIP description from each box, expect that box in top-3
+        print("\nSearch benchmark — content-based queries (query = first BLIP caption per box):")
+        content_ok = 0
+        content_total = 0
+        for box_id, label, descriptions in results:
+            if not descriptions:
+                continue
+            query = descriptions[0].strip()
+            if len(query) > 60:
+                query = query[:57] + "..."
+            content_total += 1
+            emb = es.embed([query])
+            hits = store.search(emb[0], n_results=3)
+            if hits:
+                top = hits[0]
+                in_top3 = any(h[0] == box_id for h in hits)
+                if in_top3:
+                    content_ok += 1
+                status = "PASS" if top[0] == box_id else ("top-3" if in_top3 else "FAIL")
+                print(f"  q={query!r} (expected box_id={box_id}) -> top box_id={top[0]} score={top[2]:.3f} [{status}]")
+            else:
+                print(f"  q={query!r} (expected box_id={box_id}) -> (no results) [FAIL]")
+        if content_total:
+            print(f"  Content-based: {content_ok}/{content_total} expected box in top-3")
+
+        # Optional hand-picked content queries from JSON
+        queries_file = Path(__file__).resolve().parent / "vision_content_queries.json"
+        if queries_file.exists():
+            try:
+                with open(queries_file) as f:
+                    extra = json.load(f)
+            except Exception as e:
+                print(f"\n[skip] Could not load {queries_file}: {e}", file=sys.stderr)
+                extra = []
+            if isinstance(extra, list) and extra:
+                print("\nSearch benchmark — hand-picked content queries (vision_content_queries.json):")
+                for item in extra:
+                    if isinstance(item, dict) and "query" in item and "expected_box_id" in item:
+                        q = item["query"]
+                        expected = item["expected_box_id"]
+                        emb = es.embed([q])
+                        hits = store.search(emb[0], n_results=3)
+                        if hits:
+                            top = hits[0]
+                            in_top3 = any(h[0] == expected for h in hits)
+                            status = "PASS" if top[0] == expected else ("top-3" if in_top3 else "FAIL")
+                            print(f"  q={q!r} (expected box_id={expected}) -> top box_id={top[0]} score={top[2]:.3f} [{status}]")
+                        else:
+                            print(f"  q={q!r} (expected box_id={expected}) -> (no results) [FAIL]")
 
     return results
 
