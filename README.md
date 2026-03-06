@@ -49,27 +49,6 @@ All components run **locally** on one machine for the MVP.
 - **Python 3.11+**
 - **ffmpeg** (on PATH; used to extract frames from video). Install via your package manager or [ffmpeg.org](https://ffmpeg.org/). See [backend/README.md](backend/README.md) if needed.
 
-### One-time setup
-
-From the project root:
-
-```bash
-# Backend: create venv and install dependencies
-cd backend
-python -m venv .venv
-# macOS/Linux:
-source .venv/bin/activate
-# Windows (PowerShell):
-#   .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-cd ..
-
-# Frontend: install dependencies
-cd frontend
-npm install
-cd ..
-```
-
 ### Start the app
 
 From the project root, run one of:
@@ -79,7 +58,11 @@ From the project root, run one of:
 | **macOS/Linux** | `./scripts/start.sh`   |
 | **Windows**     | `scripts\start.bat` from CMD or PowerShell (or `.\scripts\start.ps1` in PowerShell only). Do **not** run `start.ps1` in Git Bash — use the `.bat` or open PowerShell. Add `-VerboseOutput` to see health-check attempts and backend errors if the backend doesn't start. |
 
-The script starts the backend, waits for it to be ready, then starts the frontend. The first video upload may download ~1GB (BLIP model) if not cached. To use placeholder descriptions instead, run the backend with `MOCK_VISION=1` (see [backend/README.md](backend/README.md)).
+The script will **create the backend venv and install backend/frontend dependencies if they are missing**, then start the backend and frontend. No separate one-time setup is required as long as Node.js, Python, and ffmpeg are installed.
+
+The first video upload may download ~1GB (BLIP model) if not cached. To use placeholder descriptions instead, run the backend with `MOCK_VISION=1` (see [backend/README.md](backend/README.md)).
+
+**Manual setup (optional):** If you prefer to create the venv and install deps yourself, run from the project root: `cd backend && python -m venv .venv` then activate the venv and `pip install -r requirements.txt`; for the frontend run `cd frontend && npm install`. See [backend/README.md](backend/README.md) for details.
 
 ### URLs
 
