@@ -44,10 +44,13 @@ try {
     }
     Write-Host "Backend ready at http://127.0.0.1:8000"
 
-    # LAN IP (optional)
+    # LAN IP (optional; Get-NetIPAddress requires NetTCPIP module, skip if missing)
     try {
-        $addr = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch "Loopback" -and $_.IPAddress -notmatch "^169\.254" } | Select-Object -First 1).IPAddress
-        if ($addr) {
+        $nic = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.InterfaceAlias -notmatch "Loopback" -and $_.IPAddress -notmatch "^169\.254" } |
+            Select-Object -First 1
+        if ($nic -and $nic.IPAddress) {
+            $addr = $nic.IPAddress
             Write-Host ""
             Write-Host "  Your IP on this network: $addr"
             Write-Host "  On your phone (same WiFi), open: http://${addr}:5173"
@@ -59,6 +62,12 @@ try {
     $FrontendDir = Join-Path $Root "frontend"
     if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
         Write-Host "Frontend deps not installed. Run: cd frontend; npm install"
+        Stop-Job $BackendJob; Remove-Job $BackendJob
+        exit 1
+    }
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if (-not $npm) {
+        Write-Host "npm not found on PATH. Install Node.js and ensure npm is available."
         Stop-Job $BackendJob; Remove-Job $BackendJob
         exit 1
     }
