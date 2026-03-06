@@ -43,12 +43,15 @@ def compute_capture_diagnostics(frame_paths: List[Path]) -> dict:
         try:
             with Image.open(path) as img:
                 img.load()
-                brightnesses.append(_mean_brightness(img))
-                blur_scores.append(_laplacian_variance(img))
+                bright = _mean_brightness(img)
+                blur = _laplacian_variance(img)
+                brightnesses.append(bright)
+                blur_scores.append(blur)
         except Exception:
             continue
 
-    if not brightnesses:
+    # Only use frames where both metrics succeeded (avoid len(brightnesses) != len(blur_scores))
+    if not brightnesses or len(brightnesses) != len(blur_scores):
         return {"frame_count": 0, "brightness": 0.0, "blur_score": 0.0}
 
     # brightness: normalize 0–255 -> 0–1 for API

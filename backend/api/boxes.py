@@ -232,33 +232,43 @@ async def upload_box_video(
             detail=f"Video too large. Max size is {settings.max_upload_bytes // (1024 * 1024)} MB.",
         )
     video_path.write_bytes(content)
-    # Extract frames
-    vp = VideoProcessor()
-    frames = vp.extract_frames(video_path, box_id, max_frames=10)
-    if not frames:
-        raise HTTPException(status_code=400, detail="Could not extract frames from video")
-    # Per-scan quality report
-    diagnostics = compute_capture_diagnostics(frames)
-    # Describe frames (vision)
-    vs = VisionService()
-    raw_descriptions = vs.describe_frames(frames)
-    # Clean up captions a bit to reduce noise before embedding/search
-    descriptions = [_normalize_caption(t) for t in raw_descriptions]
-    # Add a label-aware document so search by box label (e.g. "box 1") matches this box
-    label_doc = f'Box labeled "{box_label}". Contents: ' + (descriptions[0] if descriptions else "various items.")
-    texts_for_store = descriptions + [label_doc]
-    es = EmbeddingService()
-    embeddings = es.embed(texts_for_store)
-    store = get_vector_store()
-    store.add(box_id, box_label, texts_for_store, embeddings)
-    # Store contents for display (replace any previous)
-    await conn.execute("DELETE FROM box_contents WHERE box_id = ?", (box_id,))
-    for text in descriptions:
-        await conn.execute("INSERT INTO box_contents (box_id, item_text) VALUES (?, ?)", (box_id, text))
-    # Update box record and diagnostics
-    await conn.execute(
-        "UPDATE boxes SET video_filename = ?, scan_frame_count = ?, scan_brightness = ?, scan_blur_score = ?, updated_at = datetime('now') WHERE id = ?",
-        (safe_name, diagnostics["frame_count"], diagnostics["brightness"], diagnostics["blur_score"], box_id),
-    )
-    await conn.commit()
-    return await get_box(box_id, conn)
+    try:
+        # Extract frames
+        vp = VideoProcessor()
+        frames = vp.extract_frames(video_path, box_id, max_frames=10)
+        if not frames:
+            raise HTTPException(status_code=400, detail="Could not extract frames from video")
+        # Per-scan quality report
+        diagnostics = compute_capture_diagnostics(frames)
+        # Describe frames (vision)
+        vs = VisionService()
+        raw_descriptions = vs.describe_frames(frames)
+        # Clean up captions a bit to reduce noise before embedding/search
+        descriptions = [_normalize_caption(t) for t in raw_descriptions]
+        # Add a label-aware document so search by box label (e.g. "box 1") matches this box
+        label_doc = f'Box labeled "{box_label}". Contents: ' + (descriptions[0] if descriptions else "various items.")
+        texts_for_store = descriptions + [label_doc]
+        es = EmbeddingService()
+        embeddings = es.embed(texts_for_store)
+        store = get_vector_store()
+        store.add(box_id, box_label, texts_for_store, embeddings)
+        # Store contents for display (replace any previous)
+        await conn.execute("DELETE FROM box_contents WHERE box_id = ?", (box_id,))
+        for text in descriptions:
+            await conn.execute("INSERT INTO box_contents (box_id, item_text) VALUES (?, ?)", (box_id, text))
+        # Update box record and diagnostics
+        await conn.execute(
+            "UPDATE boxes SET video_filename = ?, scan_frame_count = ?, scan_brightness = ?, scan_blur_score = ?, updated_at = datetime('now') WHERE id = ?",
+            (safe_name, diagnostics["frame_count"], diagnostics["brightness"], diagnostics["blur_score"], box_id),
+        )
+        await conn.commit()
+        return await get_box(box_id, conn)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Video upload processing failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Processing failed: {str(e)}. Check server logs for details.",
+        )

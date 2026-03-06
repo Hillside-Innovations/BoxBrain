@@ -105,13 +105,23 @@ export async function deleteBox(boxId: number): Promise<void> {
   await request<void>(`/boxes/${boxId}`, { method: 'DELETE' })
 }
 
+/** Video processing (frames + vision + embed) can take 1–2+ minutes; use a long timeout. */
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
+
 export async function uploadBoxVideo(boxId: number, file: File): Promise<BoxResponse> {
   const fd = new FormData()
   fd.append('video', file, file.name)
-  return await request<BoxResponse>(`/boxes/${boxId}/video`, {
-    method: 'POST',
-    body: fd,
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+  try {
+    return await request<BoxResponse>(`/boxes/${boxId}/video`, {
+      method: 'POST',
+      body: fd,
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export async function searchBoxes(q: string): Promise<SearchResponse> {

@@ -307,7 +307,19 @@ function BoxDetailCard(props: {
       setVideoFile(null)
       await onRefresh()
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+      const msg = err instanceof Error ? err.message : 'Upload failed'
+      const isAbort = err instanceof Error && err.name === 'AbortError'
+      const isNetworkError =
+        msg === 'Load failed' ||
+        msg === 'Failed to fetch' ||
+        msg.toLowerCase().includes('network')
+      setUploadError(
+        isAbort
+          ? 'Upload timed out. Try a shorter video (5–10 seconds) or try again.'
+          : isNetworkError
+            ? 'Upload failed. Backend may be unreachable or the request timed out. Ensure the server is running (e.g. scripts/start.sh).'
+            : msg
+      )
     } finally {
       setUploading(false)
     }
