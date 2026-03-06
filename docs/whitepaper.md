@@ -59,7 +59,7 @@ Moving and packing boxes.
 
 **Workflow:**
 
-1. Number a box
+1. User can label a box. Example use case: "attic_underscore_1"
 2. Record 5–10 second video of open box
 3. AI detects items
 4. Items become searchable
