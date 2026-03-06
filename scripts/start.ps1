@@ -86,13 +86,12 @@ try {
     }
     Write-Host "Backend ready at http://127.0.0.1:8000"
 
-    # LAN IP for phone testing (try Get-NetIPAddress, fallback to ipconfig)
+    # LAN IP for phone testing — single address only (try Get-NetIPAddress, fallback to ipconfig)
     $addr = $null
     try {
-        $nic = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-            Where-Object { $_.InterfaceAlias -notmatch "Loopback" -and $_.IPAddress -notmatch "^169\.254" } |
-            Select-Object -First 1
-        if ($nic -and $nic.IPAddress) { $addr = $nic.IPAddress }
+        $nics = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.InterfaceAlias -notmatch "Loopback" -and $_.IPAddress -notmatch "^169\.254" })
+        if ($nics.Count -gt 0 -and $nics[0].IPAddress) { $addr = $nics[0].IPAddress }
     } catch {}
     if (-not $addr) {
         $ipconfig = ipconfig 2>$null
