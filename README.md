@@ -47,9 +47,8 @@ All components run **locally** on one machine for the MVP.
 
 **Start everything (backend + frontend):**
 
-```bash
-./scripts/start.sh
-```
+- **macOS / Linux:** `./scripts/start.sh`
+- **Windows (PowerShell):** `.\scripts\start.ps1` (uses `backend\.venv\Scripts\python.exe`; no `activate` needed)
 
 - Backend: http://127.0.0.1:8000 (API and [docs](http://127.0.0.1:8000/docs))
 - Frontend: http://localhost:5173
