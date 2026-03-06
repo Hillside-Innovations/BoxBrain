@@ -45,16 +45,14 @@ Write-Host "Ensuring backend dependencies (pip install -r requirements.txt)..."
 
 Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
-# Use venv's python.exe explicitly so uvicorn and deps come from the venv, not system
+# Use venv's python.exe; run via Start-Process with stderr to file so we can show raw output (no PowerShell wrapping)
 $VenvPython = (Resolve-Path $BackendVenvPython).Path
-$BackendJob = Start-Job -ScriptBlock {
-    Set-Location $using:BackendDir
-    & $using:VenvPython -m uvicorn main:app --host 0.0.0.0 --port 8000
-}
+$BackendStderrFile = Join-Path $env:TEMP "boxbrain-backend-stderr.txt"
+$BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $BackendDir -NoNewWindow -PassThru -RedirectStandardError $BackendStderrFile
 
 try {
     # Wait for backend to be up
-    $max = 10
+    $max = 5
     $ok = $false
     for ($i = 1; $i -le $max; $i++) {
         if ($VerboseOutput) { Write-Host "  Waiting for backend... attempt $i/$max" }
@@ -69,13 +67,11 @@ try {
     if (-not $ok) {
         Write-Host "Backend did not start in time. Check backend/README.md"
         Write-Host ""
-        Write-Host "Backend job output (uvicorn/startup errors):"
-        Receive-Job $BackendJob 2>&1 | ForEach-Object {
-            if ($_ -is [System.Management.Automation.ErrorRecord]) { Write-Host "  $($_.Exception.Message)" }
-            else { Write-Host "  $_" }
+        Write-Host "Backend stderr (uvicorn/startup errors):"
+        if (Test-Path $BackendStderrFile) {
+            Get-Content $BackendStderrFile | ForEach-Object { Write-Host "  $_" }
         }
-        Stop-Job $BackendJob -ErrorAction SilentlyContinue
-        Remove-Job $BackendJob -ErrorAction SilentlyContinue
+        if ($BackendProcess -and -not $BackendProcess.HasExited) { Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue }
         exit 1
     }
     Write-Host "Backend ready at http://127.0.0.1:8000"
@@ -109,7 +105,7 @@ try {
     $npm = Get-Command npm -ErrorAction SilentlyContinue
     if (-not $npm) {
         Write-Host "npm not found on PATH. Install Node.js and ensure npm is available."
-        Stop-Job $BackendJob; Remove-Job $BackendJob
+        if ($BackendProcess -and -not $BackendProcess.HasExited) { Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue }
         exit 1
     }
     if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
@@ -125,6 +121,5 @@ try {
     Set-Location $FrontendDir
     & npm run dev -- --host
 } finally {
-    Stop-Job $BackendJob -ErrorAction SilentlyContinue
-    Remove-Job $BackendJob -ErrorAction SilentlyContinue
+    if ($BackendProcess -and -not $BackendProcess.HasExited) { Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue }
 }

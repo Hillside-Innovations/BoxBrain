@@ -15,12 +15,15 @@ import {
 const THEME_KEY = 'boxbrain-theme'
 type Theme = 'light' | 'dark'
 
-function getStoredTheme(): Theme {
+function getInitialTheme(): Theme {
   try {
     const s = localStorage.getItem(THEME_KEY)
     if (s === 'light' || s === 'dark') return s
   } catch {
     /* ignore */
+  }
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    return 'light'
   }
   return 'dark'
 }
@@ -35,7 +38,7 @@ function formatBoxSubtitle(box: BoxResponse) {
 }
 
 function App() {
-  const [theme, setTheme] = useState<Theme>(getStoredTheme)
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [tab, setTab] = useState<Tab>('boxes')
   const [boxes, setBoxes] = useState<BoxResponse[] | null>(null)
   const [boxesError, setBoxesError] = useState<string | null>(null)

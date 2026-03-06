@@ -10,10 +10,14 @@
   --border: rgba(255, 255, 255, 0.12);
   --border-focus: rgba(110, 231, 255, 0.5);
   --primary: #5dd9f7;
+  --primary-hover: #6ee0fa;
   --primary-dim: rgba(93, 217, 247, 0.2);
   --primary-ink: #05161d;
   --danger: #f06b6b;
   --danger-dim: rgba(240, 107, 107, 0.18);
+  --danger-border: rgba(240, 107, 107, 0.45);
+  --danger-hover: rgba(240, 107, 107, 0.28);
+  --input-hover-border: rgba(255, 255, 255, 0.18);
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 18px;
@@ -41,14 +45,18 @@
   --surface-2: rgba(0, 0, 0, 0.06);
   --surface-hover: rgba(0, 0, 0, 0.08);
   --text: rgba(15, 23, 36, 0.94);
-  --muted: rgba(15, 23, 36, 0.58);
-  --border: rgba(0, 0, 0, 0.1);
+  --muted: rgba(15, 23, 36, 0.62);
+  --border: rgba(0, 0, 0, 0.12);
   --border-focus: rgba(0, 140, 180, 0.6);
   --primary: #0891b2;
+  --primary-hover: #0e7490;
   --primary-dim: rgba(8, 145, 178, 0.15);
   --primary-ink: #fff;
   --danger: #dc2626;
   --danger-dim: rgba(220, 38, 38, 0.12);
+  --danger-border: rgba(220, 38, 38, 0.4);
+  --danger-hover: rgba(220, 38, 38, 0.18);
+  --input-hover-border: rgba(0, 0, 0, 0.2);
 
   background:
     radial-gradient(1400px 700px at 8% -10%, rgba(8, 145, 178, 0.08), transparent 55%),
@@ -294,13 +302,8 @@ body {
   opacity: 0.9;
 }
 
-[data-theme='dark'] .input:hover:not(:focus),
-:root .input:hover:not(:focus) {
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-[data-theme='light'] .input:hover:not(:focus) {
-  border-color: rgba(0, 0, 0, 0.2);
+.input:hover:not(:focus) {
+  border-color: var(--input-hover-border);
 }
 
 .input:focus {
@@ -387,14 +390,8 @@ body {
   border-color: transparent;
 }
 
-[data-theme='dark'] .button--primary:hover:not(:disabled),
-:root .button--primary:hover:not(:disabled) {
-  background: #6ee0fa;
-  filter: brightness(1.05);
-}
-
-[data-theme='light'] .button--primary:hover:not(:disabled) {
-  background: #0e7490;
+.button--primary:hover:not(:disabled) {
+  background: var(--primary-hover);
   filter: brightness(1.05);
 }
 
@@ -410,11 +407,11 @@ body {
 .button--danger {
   background: var(--danger-dim);
   color: var(--danger);
-  border-color: rgba(240, 107, 107, 0.4);
+  border-color: var(--danger-border);
 }
 
 .button--danger:hover:not(:disabled) {
-  background: rgba(240, 107, 107, 0.28);
+  background: var(--danger-hover);
 }
 
 /* List */
@@ -496,7 +493,7 @@ body {
 }
 
 .alert--error {
-  border-color: rgba(240, 107, 107, 0.45);
+  border-color: var(--danger-border);
   background: var(--danger-dim);
   color: var(--danger);
 }

@@ -53,7 +53,7 @@ cleanup() {
 trap cleanup INT TERM
 
 # Wait for backend to be up
-for i in 1 2 3 4 5 6 7 8 9 10; do
+for i in 1 2 3 4 5; do
   if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health 2>/dev/null | grep -q 200; then
     break
   fi
