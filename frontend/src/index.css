@@ -113,6 +113,37 @@ body {
   color: var(--muted);
 }
 
+.box-image-wrap {
+  margin-top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.box-image {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+}
+
+.box-contents {
+  margin-top: 12px;
+}
+
+.box-contents__list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.box-contents__list li {
+  margin-bottom: 4px;
+}
+
 .form {
   margin-top: 12px;
   display: flex;
@@ -172,6 +203,16 @@ body {
 
 .button--ghost {
   background: transparent;
+}
+
+.button--danger {
+  background: rgba(255, 107, 107, 0.2);
+  color: var(--danger);
+  border-color: rgba(255, 107, 107, 0.5);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.3);
 }
 
 .list {

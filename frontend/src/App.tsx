@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ApiError,
   createBox,
+  deleteBox,
+  getBoxImageUrl,
   listBoxes,
   searchBoxes,
   updateBox,
@@ -108,7 +110,7 @@ function BoxesScreen(props: {
   boxesLoading: boolean
   selectedBoxId: number | null
   selectedBox: BoxResponse | null
-  onSelectBox: (id: number) => void
+  onSelectBox: (id: number | null) => void
   onRefresh: () => Promise<void>
 }) {
   const { boxes, boxesError, boxesLoading, selectedBoxId, onSelectBox, onRefresh, selectedBox } = props
@@ -216,14 +218,23 @@ function BoxesScreen(props: {
       </section>
 
       {selectedBox ? (
-        <BoxDetailCard key={selectedBox.id} box={selectedBox} onRefresh={onRefresh} />
+        <BoxDetailCard
+          key={selectedBox.id}
+          box={selectedBox}
+          onRefresh={onRefresh}
+          onDeleted={() => onSelectBox(null)}
+        />
       ) : null}
     </div>
   )
 }
 
-function BoxDetailCard(props: { box: BoxResponse; onRefresh: () => Promise<void> }) {
-  const { box, onRefresh } = props
+function BoxDetailCard(props: {
+  box: BoxResponse
+  onRefresh: () => Promise<void>
+  onDeleted: () => void
+}) {
+  const { box, onRefresh, onDeleted } = props
   const [location, setLocation] = useState(box.location ?? '')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -231,6 +242,9 @@ function BoxDetailCard(props: { box: BoxResponse; onRefresh: () => Promise<void>
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function onSaveLocation(e: React.FormEvent) {
     e.preventDefault()
@@ -270,6 +284,29 @@ function BoxDetailCard(props: { box: BoxResponse; onRefresh: () => Promise<void>
         {box.has_video ? 'Scanned' : 'Not scanned yet'}
       </div>
 
+      {box.has_video ? (
+        <div className="box-image-wrap">
+          <img
+            src={getBoxImageUrl(box.id)}
+            alt={`Scan of ${box.label}`}
+            className="box-image"
+          />
+        </div>
+      ) : null}
+
+      {box.contents && box.contents.length > 0 ? (
+        <div className="box-contents">
+          <div className="field__label">Items in this box</div>
+          <ul className="box-contents__list">
+            {box.contents.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : box.has_video ? (
+        <div className="muted">No items detected yet.</div>
+      ) : null}
+
       <form className="form" onSubmit={onSaveLocation}>
         <label className="field">
           <div className="field__label">Location</div>
@@ -306,6 +343,33 @@ function BoxDetailCard(props: { box: BoxResponse; onRefresh: () => Promise<void>
           {uploading ? 'Uploading…' : box.has_video ? 'Upload new scan' : 'Upload scan'}
         </button>
       </form>
+
+      <div className="divider" />
+
+      <div className="form">
+        {deleteError ? <div className="alert alert--error">{deleteError}</div> : null}
+        <button
+          type="button"
+          className="button button--danger"
+          disabled={deleting}
+          onClick={async () => {
+            if (!window.confirm(`Remove box “${box.label}”? This cannot be undone.`)) return
+            setDeleteError(null)
+            setDeleting(true)
+            try {
+              await deleteBox(box.id)
+              await onRefresh()
+              onDeleted()
+            } catch (err) {
+              setDeleteError(err instanceof Error ? err.message : 'Failed to remove box')
+            } finally {
+              setDeleting(false)
+            }
+          }}
+        >
+          {deleting ? 'Removing…' : 'Remove box'}
+        </button>
+      </div>
     </section>
   )
 }

@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import AsyncGenerator
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 
 from config import settings
 from database import get_db
@@ -42,11 +44,26 @@ async def create_box(body: BoxCreate, conn: aiosqlite.Connection = Depends(db_co
             created_at=r[3],
             updated_at=r[4],
             has_video=bool(r[5]),
+            contents=[],
         )
     except aiosqlite.IntegrityError as e:
         if "UNIQUE" in str(e):
             raise HTTPException(status_code=409, detail="Box with this label already exists")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+async def _contents_for_boxes(conn: aiosqlite.Connection, box_ids: list[int]) -> dict[int, list[str]]:
+    out: dict[int, list[str]] = {bid: [] for bid in box_ids}
+    if not box_ids:
+        return out
+    placeholders = ",".join("?" * len(box_ids))
+    cursor = await conn.execute(
+        f"SELECT box_id, item_text FROM box_contents WHERE box_id IN ({placeholders}) ORDER BY box_id",
+        box_ids,
+    )
+    for row in await cursor.fetchall():
+        out[row[0]].append(row[1])
+    return out
 
 
 @router.get("", response_model=list[BoxResponse])
@@ -55,6 +72,8 @@ async def list_boxes(conn: aiosqlite.Connection = Depends(db_conn)):
         "SELECT id, label, location, created_at, updated_at, video_filename FROM boxes ORDER BY id"
     )
     rows = await cursor.fetchall()
+    box_ids = [r[0] for r in rows]
+    contents_map = await _contents_for_boxes(conn, box_ids)
     return [
         BoxResponse(
             id=r[0],
@@ -63,6 +82,7 @@ async def list_boxes(conn: aiosqlite.Connection = Depends(db_conn)):
             created_at=r[3],
             updated_at=r[4],
             has_video=bool(r[5]),
+            contents=contents_map.get(r[0], []),
         )
         for r in rows
     ]
@@ -77,6 +97,7 @@ async def get_box(box_id: int, conn: aiosqlite.Connection = Depends(db_conn)):
     r = await cursor.fetchone()
     if not r:
         raise HTTPException(status_code=404, detail="Box not found")
+    contents_map = await _contents_for_boxes(conn, [box_id])
     return BoxResponse(
         id=r[0],
         label=r[1],
@@ -84,7 +105,20 @@ async def get_box(box_id: int, conn: aiosqlite.Connection = Depends(db_conn)):
         created_at=r[3],
         updated_at=r[4],
         has_video=bool(r[5]),
+        contents=contents_map.get(box_id, []),
     )
+
+
+@router.get("/{box_id}/image", response_class=FileResponse)
+async def get_box_image(box_id: int):
+    """Serve the first frame of the box scan as the box image, or 404 if no scan."""
+    frame_dir = settings.frames_dir / str(box_id)
+    if not frame_dir.is_dir():
+        raise HTTPException(status_code=404, detail="No scan image for this box")
+    frames = sorted(frame_dir.glob("frame_*.jpg"))
+    if not frames:
+        raise HTTPException(status_code=404, detail="No scan image for this box")
+    return FileResponse(frames[0], media_type="image/jpeg")
 
 
 @router.patch("/{box_id}", response_model=BoxResponse)
@@ -97,6 +131,38 @@ async def update_box(box_id: int, body: BoxUpdate, conn: aiosqlite.Connection = 
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Box not found")
     return await get_box(box_id, conn)
+
+
+@router.delete("/{box_id}", status_code=204)
+async def delete_box(box_id: int, conn: aiosqlite.Connection = Depends(db_conn)):
+    """Remove a box and its scan data. Vector store, DB, and local files are cleaned up."""
+    cursor = await conn.execute("SELECT id, video_filename FROM boxes WHERE id = ?", (box_id,))
+    row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Box not found")
+    video_filename = row[1]
+    # Remove from vector store so search no longer returns this box
+    store = get_vector_store()
+    store.delete_box(box_id)
+    # Delete box (CASCADE removes box_contents)
+    await conn.execute("DELETE FROM boxes WHERE id = ?", (box_id,))
+    await conn.commit()
+    # Optional: remove uploaded video and frames from disk
+    if video_filename:
+        video_path = settings.uploads_dir / video_filename
+        if video_path.exists():
+            try:
+                video_path.unlink()
+            except OSError:
+                pass
+    frame_dir = settings.frames_dir / str(box_id)
+    if frame_dir.is_dir():
+        try:
+            for f in frame_dir.iterdir():
+                f.unlink()
+            frame_dir.rmdir()
+        except OSError:
+            pass
 
 
 @router.post("/{box_id}/video", response_model=BoxResponse)
@@ -145,6 +211,10 @@ async def upload_box_video(
     embeddings = es.embed(descriptions)
     store = get_vector_store()
     store.add(box_id, box_label, descriptions, embeddings)
+    # Store contents for display (replace any previous)
+    await conn.execute("DELETE FROM box_contents WHERE box_id = ?", (box_id,))
+    for text in descriptions:
+        await conn.execute("INSERT INTO box_contents (box_id, item_text) VALUES (?, ?)", (box_id, text))
     # Update box record
     await conn.execute(
         "UPDATE boxes SET video_filename = ?, updated_at = datetime('now') WHERE id = ?",

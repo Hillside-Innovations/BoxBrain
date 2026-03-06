@@ -12,14 +12,17 @@ class MemoryVectorStore:
         self._box_ids: List[int] = []
         self._box_labels: List[str] = []
 
-    def add(self, box_id: int, box_label: str, texts: List[str], embeddings: List[List[float]]) -> None:
-        if not texts or not embeddings:
-            return
-        # Remove existing for this box_id
+    def delete_box(self, box_id: int) -> None:
+        """Remove all vectors for this box (e.g. when box is deleted)."""
         keep = [i for i in range(len(self._box_ids)) if self._box_ids[i] != box_id]
         self._embeddings = [self._embeddings[i] for i in keep]
         self._box_ids = [self._box_ids[i] for i in keep]
         self._box_labels = [self._box_labels[i] for i in keep]
+
+    def add(self, box_id: int, box_label: str, texts: List[str], embeddings: List[List[float]]) -> None:
+        if not texts or not embeddings:
+            return
+        self.delete_box(box_id)
         for emb in embeddings:
             self._embeddings.append(np.array(emb, dtype=np.float32))
             self._box_ids.append(box_id)

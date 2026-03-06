@@ -54,7 +54,7 @@ All components run **locally** on one machine for the MVP.
 - Backend: http://127.0.0.1:8000 (API and [docs](http://127.0.0.1:8000/docs))
 - Frontend: http://localhost:5173
 
-The script starts the backend with `MOCK_VISION=1` (placeholder descriptions; no BLIP download), then the frontend. Press **Ctrl+C** to stop both.
+The script starts the backend with the real vision model (BLIP); the first video upload may download ~1GB if not cached. To use placeholder descriptions instead, run the backend with `MOCK_VISION=1` (see backend/README.md). Press **Ctrl+C** to stop both.
 
 To run backend and frontend separately, see [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 

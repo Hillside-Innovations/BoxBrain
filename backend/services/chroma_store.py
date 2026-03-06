@@ -21,14 +21,18 @@ class ChromaStore:
             metadata={"description": "Text descriptions of box contents for semantic search"},
         )
 
-    def add(self, box_id: int, box_label: str, texts: List[str], embeddings: List[List[float]]) -> None:
-        if not texts or not embeddings:
-            return
-        # Replace any existing content for this box (re-upload)
+    def delete_box(self, box_id: int) -> None:
+        """Remove all vectors for this box (e.g. when box is deleted)."""
         try:
             self._collection.delete(where={"box_id": box_id})
         except Exception:
             pass
+
+    def add(self, box_id: int, box_label: str, texts: List[str], embeddings: List[List[float]]) -> None:
+        if not texts or not embeddings:
+            return
+        # Replace any existing content for this box (re-upload)
+        self.delete_box(box_id)
         ids = [f"box_{box_id}_{i}" for i in range(len(texts))]
         metadatas = [{"box_id": box_id, "box_label": box_label} for _ in texts]
         self._collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)

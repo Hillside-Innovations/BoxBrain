@@ -79,3 +79,18 @@ def test_search_empty(client: TestClient):
 def test_search_requires_q(client: TestClient):
     r = client.get("/search")
     assert r.status_code == 422  # validation error
+
+
+def test_delete_box(client: TestClient):
+    create = client.post("/boxes", json={"label": "to_delete", "location": None})
+    assert create.status_code == 200
+    bid = create.json()["id"]
+    r = client.delete(f"/boxes/{bid}")
+    assert r.status_code == 204
+    r2 = client.get(f"/boxes/{bid}")
+    assert r2.status_code == 404
+
+
+def test_delete_box_404(client: TestClient):
+    r = client.delete("/boxes/99999")
+    assert r.status_code == 404

@@ -6,7 +6,7 @@ from config import settings
 
 
 DB_PATH = settings.db_path
-SCHEMA = """
+SCHEMA_BOXES = """
 CREATE TABLE IF NOT EXISTS boxes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     label TEXT NOT NULL UNIQUE,
@@ -16,6 +16,13 @@ CREATE TABLE IF NOT EXISTS boxes (
     video_filename TEXT
 );
 """
+SCHEMA_BOX_CONTENTS = """
+CREATE TABLE IF NOT EXISTS box_contents (
+    box_id INTEGER NOT NULL REFERENCES boxes(id) ON DELETE CASCADE,
+    item_text TEXT NOT NULL
+);
+"""
+SCHEMA_INDEX = "CREATE INDEX IF NOT EXISTS ix_box_contents_box_id ON box_contents(box_id);"
 
 
 async def get_db() -> aiosqlite.Connection:
@@ -28,7 +35,9 @@ async def get_db() -> aiosqlite.Connection:
 async def init_db() -> None:
     conn = await get_db()
     try:
-        await conn.execute(SCHEMA)
+        await conn.execute(SCHEMA_BOXES)
+        await conn.execute(SCHEMA_BOX_CONTENTS)
+        await conn.execute(SCHEMA_INDEX)
         await conn.commit()
     finally:
         await conn.close()

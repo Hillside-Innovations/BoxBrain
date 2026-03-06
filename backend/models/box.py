@@ -32,3 +32,4 @@ class BoxResponse(BaseModel):
     created_at: str
     updated_at: str
     has_video: bool = False
+    contents: list[str] = []  # detected items / frame descriptions from last scan

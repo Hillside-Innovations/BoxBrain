@@ -5,6 +5,17 @@ export type BoxResponse = {
   created_at: string
   updated_at: string
   has_video: boolean
+  contents: string[]
+}
+
+/** URL for the box scan image (first frame). Append cache-buster if needed. */
+export function getBoxImageUrl(boxId: number): string {
+  const base =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+    (typeof window !== 'undefined'
+      ? `${window.location.protocol}//${window.location.hostname}:8000`
+      : 'http://127.0.0.1:8000')
+  return `${base}/boxes/${boxId}/image`
 }
 
 export type SearchHit = {
@@ -39,6 +50,7 @@ const API_BASE_URL =
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, init)
+  if (res.status === 204) return undefined as T
   const contentType = res.headers.get('content-type') ?? ''
   const isJson = contentType.includes('application/json')
   const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null)
@@ -55,6 +67,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(message, res.status, payload)
   }
 
+  if (res.status === 204) return undefined as T
   return payload as T
 }
 
@@ -79,6 +92,10 @@ export async function updateBox(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+}
+
+export async function deleteBox(boxId: number): Promise<void> {
+  await request<void>(`/boxes/${boxId}`, { method: 'DELETE' })
 }
 
 export async function uploadBoxVideo(boxId: number, file: File): Promise<BoxResponse> {
