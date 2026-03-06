@@ -29,6 +29,9 @@ if [ ! -d "$BACKEND_DIR/.venv" ]; then
   (cd "$BACKEND_DIR" && "$PYTHON" -m venv .venv && .venv/bin/pip install -r requirements.txt) || exit 1
   echo "Backend venv ready."
 fi
+# Upgrade pip in the venv (venv often ships with an old bundled pip)
+echo "Upgrading pip in venv..."
+(cd "$BACKEND_DIR" && .venv/bin/pip install --upgrade pip) || true
 # Ensure dependencies are installed (e.g. if venv existed but packages were missing)
 echo "Ensuring backend dependencies (pip install -r requirements.txt)..."
 (cd "$BACKEND_DIR" && .venv/bin/pip install -r requirements.txt) || true

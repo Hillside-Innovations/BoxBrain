@@ -36,6 +36,9 @@ if (-not (Test-Path $BackendVenvPython)) {
     & $BackendVenvPip install -r (Join-Path $BackendDir "requirements.txt")
     Write-Host "Backend venv ready."
 }
+# Upgrade pip in the venv (venv often ships with an old bundled pip)
+Write-Host "Upgrading pip in venv..."
+& $BackendVenvPython -m pip install --upgrade pip
 # Ensure dependencies are installed (e.g. if venv existed but packages were missing)
 Write-Host "Ensuring backend dependencies (pip install -r requirements.txt)..."
 & $BackendVenvPython -m pip install -r (Join-Path $BackendDir "requirements.txt")
