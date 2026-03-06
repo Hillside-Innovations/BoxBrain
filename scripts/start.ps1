@@ -3,7 +3,13 @@
 # Do not run this file in Git Bash or sh — you'll get "command not found" / syntax errors.
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyScript.Path)
+# Project root: parent of the folder containing this script (works when run via -File or .bat)
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyScript.Path }
+if (-not $ScriptDir) {
+    Write-Host "Could not determine script directory. Run from PowerShell with: powershell -File .\scripts\start.ps1"
+    exit 1
+}
+$Root = Split-Path -Parent $ScriptDir
 Set-Location $Root
 
 $BackendVenvPython = Join-Path $Root "backend\.venv\Scripts\python.exe"
