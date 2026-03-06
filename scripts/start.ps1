@@ -85,6 +85,8 @@ try {
         exit 1
     }
     Write-Host "Backend ready at http://127.0.0.1:8000"
+    Write-Host "  Server logs: stdout $BackendStdoutFile | stderr $BackendStderrFile"
+    Write-Host "  To view: Get-Content `$env:TEMP\boxbrain-backend-stderr.txt -Tail 20"
 
     # LAN IP for phone testing — single address only (try Get-NetIPAddress, fallback to ipconfig)
     $addr = $null
