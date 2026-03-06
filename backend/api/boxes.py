@@ -24,6 +24,25 @@ async def db_conn() -> AsyncGenerator[aiosqlite.Connection, None]:
         await conn.close()
 
 
+def _normalize_caption(text: str) -> str:
+    """Lightweight cleanup of vision captions before embedding/search."""
+    t = text.strip()
+    lower = t.lower()
+    prefixes = [
+        "a photo of",
+        "a picture of",
+        "an image of",
+        "the image of",
+        "a close up of",
+    ]
+    for p in prefixes:
+        if lower.startswith(p):
+            t = t[len(p) :].lstrip(" ,.-")
+            lower = t.lower()
+            break
+    return t or text.strip()
+
+
 @router.post("", response_model=BoxResponse)
 async def create_box(body: BoxCreate, conn: aiosqlite.Connection = Depends(db_conn)):
     try:
@@ -205,8 +224,10 @@ async def upload_box_video(
         raise HTTPException(status_code=400, detail="Could not extract frames from video")
     # Describe frames (vision)
     vs = VisionService()
-    descriptions = vs.describe_frames(frames)
-    # Embed and store in ChromaDB
+    raw_descriptions = vs.describe_frames(frames)
+    # Clean up captions a bit to reduce noise before embedding/search
+    descriptions = [_normalize_caption(t) for t in raw_descriptions]
+    # Embed and store in ChromaDB / vector store
     es = EmbeddingService()
     embeddings = es.embed(descriptions)
     store = get_vector_store()
