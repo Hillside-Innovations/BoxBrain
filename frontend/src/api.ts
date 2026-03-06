@@ -1,0 +1,91 @@
+export type BoxResponse = {
+  id: number
+  label: string
+  location: string | null
+  created_at: string
+  updated_at: string
+  has_video: boolean
+}
+
+export type SearchHit = {
+  box_id: number
+  box_label: string
+  score: number
+}
+
+export type SearchResponse = {
+  query: string
+  results: SearchHit[]
+}
+
+export class ApiError extends Error {
+  status: number
+  payload: unknown
+
+  constructor(message: string, status: number, payload: unknown) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.payload = payload
+  }
+}
+
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:8000'
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, init)
+  const contentType = res.headers.get('content-type') ?? ''
+  const isJson = contentType.includes('application/json')
+  const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null)
+
+  if (!res.ok) {
+    const detail =
+      typeof payload === 'object' && payload && 'detail' in payload ? (payload as any).detail : null
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : `Request failed (${res.status} ${res.statusText})`
+    throw new ApiError(message, res.status, payload)
+  }
+
+  return payload as T
+}
+
+export async function listBoxes(): Promise<BoxResponse[]> {
+  return await request<BoxResponse[]>('/boxes')
+}
+
+export async function createBox(body: { label: string; location: string | null }): Promise<BoxResponse> {
+  return await request<BoxResponse>('/boxes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateBox(
+  boxId: number,
+  body: { location: string | null },
+): Promise<BoxResponse> {
+  return await request<BoxResponse>(`/boxes/${boxId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export async function uploadBoxVideo(boxId: number, file: File): Promise<BoxResponse> {
+  const fd = new FormData()
+  fd.append('video', file, file.name)
+  return await request<BoxResponse>(`/boxes/${boxId}/video`, {
+    method: 'POST',
+    body: fd,
+  })
+}
+
+export async function searchBoxes(q: string): Promise<SearchResponse> {
+  const qs = new URLSearchParams({ q })
+  return await request<SearchResponse>(`/search?${qs.toString()}`)
+}
+
