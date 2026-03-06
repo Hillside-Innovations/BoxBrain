@@ -41,7 +41,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const detail =
-      typeof payload === 'object' && payload && 'detail' in payload ? (payload as any).detail : null
+      typeof payload === 'object' && payload && 'detail' in payload
+        ? (payload as { detail?: unknown }).detail
+        : null
     const message =
       typeof detail === 'string'
         ? detail

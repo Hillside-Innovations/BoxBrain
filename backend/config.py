@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Vision: use real BLIP model; set MOCK_VISION=1 to skip model download for testing
     mock_vision: bool = False
 
+    # Max video upload size (bytes). Phones can produce large files; 100MB is a safe default.
+    max_upload_bytes: int = 100 * 1024 * 1024
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.data_dir.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BoxCreate(BaseModel):
@@ -14,6 +13,8 @@ class BoxUpdate(BaseModel):
 
 
 class BoxInDB(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     label: str
     location: Optional[str] = None
@@ -21,17 +22,13 @@ class BoxInDB(BaseModel):
     updated_at: str
     video_filename: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 
 class BoxResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     label: str
     location: Optional[str] = None
     created_at: str
     updated_at: str
     has_video: bool = False
-
-    class Config:
-        from_attributes = True

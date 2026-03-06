@@ -107,6 +107,12 @@ async def upload_box_video(
 ):
     if not video.filename or not any(video.filename.lower().endswith(ext) for ext in (".mp4", ".mov", ".webm", ".avi")):
         raise HTTPException(status_code=400, detail="Upload must be a video file (e.g. .mp4, .mov)")
+    # Reject oversized uploads (e.g. long phone recordings)
+    if video.size is not None and video.size > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Video too large. Max size is {settings.max_upload_bytes // (1024 * 1024)} MB.",
+        )
     # Ensure box exists
     cursor = await conn.execute(
         "SELECT id, label FROM boxes WHERE id = ?", (box_id,)
@@ -120,6 +126,11 @@ async def upload_box_video(
     safe_name = f"{box_id}_{video.filename}"
     video_path = settings.uploads_dir / safe_name
     content = await video.read()
+    if len(content) > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Video too large. Max size is {settings.max_upload_bytes // (1024 * 1024)} MB.",
+        )
     video_path.write_bytes(content)
     # Extract frames
     vp = VideoProcessor()

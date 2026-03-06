@@ -93,6 +93,24 @@ Data is stored under `backend/data/` (SQLite DB, ChromaDB, uploads, frames).
 
 ---
 
+## Testing from your phone (local network)
+
+To use the frontend on your phone and have it talk to the backend on your laptop:
+
+1. **Run the backend bound to all interfaces** so it accepts connections from the LAN:
+   ```bash
+   cd backend && MOCK_VISION=1 uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+2. **Find your machine’s LAN IP** (the phone must be on the same WiFi):
+   - macOS: System Settings → Network → Wi‑Fi → Details, or run `ipconfig getifaddr en0`.
+   - Windows: `ipconfig` and look for the IPv4 address of your WiFi adapter.
+3. **Point the frontend at the backend:** use `http://<your-lan-ip>:8000` as the API base URL (e.g. in the frontend env or config). The phone will then upload videos and call search against that URL.
+4. **Firewall:** allow inbound TCP on port 8000 if your OS prompts.
+
+Example: if your LAN IP is `192.168.1.10`, the API base URL is `http://192.168.1.10:8000` and docs are at `http://192.168.1.10:8000/docs`.
+
+---
+
 ## API
 
 | Method | Path | Description |
@@ -104,6 +122,20 @@ Data is stored under `backend/data/` (SQLite DB, ChromaDB, uploads, frames).
 | PATCH | `/boxes/{id}` | Update (e.g. location) |
 | POST | `/boxes/{id}/video` | Upload video (multipart); extracts frames, runs vision, embeds, stores |
 | GET | `/search?q=...` | Semantic search; returns `box_id`, `box_label`, `score` |
+
+For request/response examples and error format, see **`docs/api-for-frontend.md`** in the repo root (for your frontend dev).
+
+---
+
+## Tests
+
+From `backend/`:
+
+```bash
+pytest tests/ -v
+```
+
+Uses a temporary directory for DB and storage (see `conftest.py`). No ffmpeg or real video required for the current tests.
 
 ---
 
