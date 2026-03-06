@@ -41,6 +41,25 @@ All components run **locally** on one machine for the MVP.
 
 ---
 
+## Running locally
+
+**Prerequisites:** Node.js, Python 3.11+, ffmpeg (see [backend/README.md](backend/README.md)). One-time setup: install backend deps (`cd backend && python -m venv .venv && pip install -r requirements.txt`) and frontend deps (`cd frontend && npm install`).
+
+**Start everything (backend + frontend):**
+
+```bash
+./scripts/start.sh
+```
+
+- Backend: http://127.0.0.1:8000 (API and [docs](http://127.0.0.1:8000/docs))
+- Frontend: http://localhost:5173
+
+The script starts the backend with `MOCK_VISION=1` (placeholder descriptions; no BLIP download), then the frontend. Press **Ctrl+C** to stop both.
+
+To run backend and frontend separately, see [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
+
+---
+
 ## Success criteria (v1)
 
 - User packs **20+ boxes** with normal, messy packing.

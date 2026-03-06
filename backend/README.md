@@ -71,6 +71,10 @@ Optional: copy `.env.example` to `.env` and set `MOCK_VISION=1` to skip download
 
 ## Run
 
+**From repo root (backend + frontend together):** use `./scripts/start.sh` — see the main [README](../README.md#running-locally).
+
+**Backend only:**
+
 From repo root:
 
 ```bash
