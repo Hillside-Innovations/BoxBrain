@@ -44,20 +44,30 @@ try {
     }
     Write-Host "Backend ready at http://127.0.0.1:8000"
 
-    # LAN IP (optional; Get-NetIPAddress requires NetTCPIP module, skip if missing)
+    # LAN IP for phone testing (try Get-NetIPAddress, fallback to ipconfig)
+    $addr = $null
     try {
         $nic = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
             Where-Object { $_.InterfaceAlias -notmatch "Loopback" -and $_.IPAddress -notmatch "^169\.254" } |
             Select-Object -First 1
-        if ($nic -and $nic.IPAddress) {
-            $addr = $nic.IPAddress
-            Write-Host ""
-            Write-Host "  Your IP on this network: $addr"
-            Write-Host "  On your phone (same WiFi), open: http://${addr}:5173"
-            Write-Host "  (Backend API for the app: http://${addr}:8000)"
-            Write-Host ""
-        }
+        if ($nic -and $nic.IPAddress) { $addr = $nic.IPAddress }
     } catch {}
+    if (-not $addr) {
+        $ipconfig = ipconfig 2>$null
+        foreach ($line in ($ipconfig -split "`n")) {
+            if ($line -match "IPv4 Address[^:]*:\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})") {
+                $a = $Matches[1]
+                if ($a -notmatch "^127\.|^169\.254") { $addr = $a; break }
+            }
+        }
+    }
+    if ($addr) {
+        Write-Host ""
+        Write-Host "  Your IP on this network: $addr"
+        Write-Host "  Frontend (e.g. on your phone, same WiFi): http://${addr}:5173"
+        Write-Host "  Backend API: http://${addr}:8000"
+        Write-Host ""
+    }
 
     $FrontendDir = Join-Path $Root "frontend"
     if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
