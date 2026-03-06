@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+env/
+.env
+.env.local
+.env.*.local
+
+# Build / dist
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs and local data
+*.log
+*.sqlite
+*.db
+
+# ChromaDB / vector store (if persisted locally)
+chroma_data/
+
+# Optional: keep a template if you commit example env
+# !.env.example

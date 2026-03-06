@@ -1,0 +1,11 @@
+---
+description: BoxBrain project context and conventions for AI agents
+alwaysApply: true
+---
+
+# BoxBrain project
+
+- **Read `Claude.md` first** for product vision, tech stack, and repo structure.
+- **Product:** Location memory for physical stuff—user films a box, AI detects objects, search returns box/location. Not a traditional inventory app.
+- **Stack:** React + Vite (frontend), Python FastAPI (backend), ffmpeg, multimodal vision, ChromaDB + SQLite. All local for MVP.
+- **Conventions:** Prefer docs in `docs/*.md` over guessing. MVP = create box → upload video → detect objects → semantic search → return box. Keep frontend and backend in separate directories. Validate with real packed boxes and blind search (see `docs/testing-plan.md`).
