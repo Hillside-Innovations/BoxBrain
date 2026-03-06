@@ -34,6 +34,8 @@ cd backend && time python -m tests.vision_harness --search 2>&1 | tee docs/visio
 | 'box 4' | box_id=12 (box 5)| 0.761  |
 | 'box 5' | box_id=12 (box 5)| 0.759  |
 
+**Score:** Similarity between the query embedding and the top-matching box (aggregated over its frame embeddings). Value in [0, 1]; higher means the box’s indexed content is more similar to the query. From our embedder (sentence-transformers) and vector store, this is effectively cosine similarity normalized to that range.
+
 **Notes:** Search-by-label correct 3/5 (box 2, 4, 5). "box 1" and "box 3" ranked "box 2" first—expected when querying by label only, since BLIP captions describe scene content.
 
 ---
