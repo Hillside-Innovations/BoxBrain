@@ -8,6 +8,15 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Print LAN IP so phone on same WiFi can connect (macOS: en0/en1, Linux: hostname -I)
+lan_ip() {
+  if command -v ipconfig &>/dev/null; then
+    ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true
+  elif command -v hostname &>/dev/null; then
+    hostname -I 2>/dev/null | awk '{print $1}' || true
+  fi
+}
+
 # Backend
 if [ ! -d "backend/.venv" ]; then
   echo "Backend venv not found. Run: cd backend && python -m venv .venv && pip install -r requirements.txt"
@@ -18,7 +27,7 @@ echo "Starting backend (http://127.0.0.1:8000) ..."
 (
   cd backend
   . .venv/bin/activate
-  MOCK_VISION=1 uvicorn main:app --host 127.0.0.1 --port 8000
+  MOCK_VISION=1 uvicorn main:app --host 0.0.0.0 --port 8000
 ) &
 BACKEND_PID=$!
 
@@ -44,6 +53,15 @@ if ! curl -s -o /dev/null http://127.0.0.1:8000/health 2>/dev/null; then
 fi
 echo "Backend ready at http://127.0.0.1:8000"
 
+LAN_IP=$(lan_ip)
+if [ -n "$LAN_IP" ]; then
+  echo ""
+  echo "  Your IP on this network: $LAN_IP"
+  echo "  On your phone (same WiFi), open: http://$LAN_IP:5173"
+  echo "  (Backend API for the app: http://$LAN_IP:8000)"
+  echo ""
+fi
+
 # Frontend
 if [ ! -d "frontend/node_modules" ]; then
   echo "Frontend deps not installed. Run: cd frontend && npm install"
@@ -53,4 +71,4 @@ fi
 echo "Starting frontend (http://localhost:5173) ..."
 echo "Press Ctrl+C to stop both."
 cd frontend
-npm run dev
+npm run dev -- --host

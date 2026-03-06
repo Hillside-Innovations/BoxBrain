@@ -30,8 +30,12 @@ export class ApiError extends Error {
   }
 }
 
+// Use same host as the page so phone (http://<LAN_IP>:5173) calls backend at http://<LAN_IP>:8000
 const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:8000'
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : 'http://127.0.0.1:8000')
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, init)
