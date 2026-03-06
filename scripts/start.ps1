@@ -45,9 +45,11 @@ Write-Host "Ensuring backend dependencies (pip install -r requirements.txt)..."
 
 Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
+# Use venv's python.exe explicitly so uvicorn and deps come from the venv, not system
+$VenvPython = (Resolve-Path $BackendVenvPython).Path
 $BackendJob = Start-Job -ScriptBlock {
     Set-Location $using:BackendDir
-    & $using:BackendVenvPython -m uvicorn main:app --host 0.0.0.0 --port 8000
+    & $using:VenvPython -m uvicorn main:app --host 0.0.0.0 --port 8000
 }
 
 try {

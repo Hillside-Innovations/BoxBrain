@@ -40,8 +40,7 @@ echo "Starting backend (http://127.0.0.1:8000) ..."
 echo "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
 (
   cd "$BACKEND_DIR"
-  . .venv/bin/activate
-  uvicorn main:app --host 0.0.0.0 --port 8000
+  exec "$BACKEND_DIR/.venv/bin/python" -m uvicorn main:app --host 0.0.0.0 --port 8000
 ) &
 BACKEND_PID=$!
 
