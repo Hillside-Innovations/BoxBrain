@@ -22,8 +22,9 @@ Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 Write-Host "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"
 $BackendDir = Join-Path $Root "backend"
 $BackendJob = Start-Job -ScriptBlock {
+    Set-Location $using:BackendDir
     & $using:BackendVenvPython -m uvicorn main:app --host 0.0.0.0 --port 8000
-} -WorkingDirectory $BackendDir
+}
 
 try {
     # Wait for backend to be up
