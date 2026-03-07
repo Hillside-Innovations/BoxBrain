@@ -43,6 +43,16 @@ Write-Host "Upgrading pip in venv..."
 Write-Host "Ensuring backend dependencies (pip install -r requirements.txt)..."
 & $BackendVenvPython -m pip install -r (Join-Path $BackendDir "requirements.txt")
 
+# Backend needs ffmpeg for video upload (frame extraction)
+$ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
+if (-not $ffmpeg) {
+    Write-Host "Error: ffmpeg is not installed or not on PATH. Video upload will fail without it."
+    Write-Host "  Install: winget install ffmpeg"
+    Write-Host "  Or download: https://ffmpeg.org/download.html (add the bin folder to PATH)"
+    Write-Host "  Then restart this terminal and run the start script again."
+    exit 1
+}
+
 Write-Host "Starting backend (http://127.0.0.1:8000) ..."
 $pyVersion = & $BackendVenvPython --version 2>&1
 Write-Host "  Python: $pyVersion"

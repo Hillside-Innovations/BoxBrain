@@ -2,6 +2,7 @@
 BoxBrain backend — local-first API.
 Create boxes, upload video, semantic search. No cloud required.
 """
+import shutil
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,6 +15,12 @@ from api import boxes_router, search_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not shutil.which("ffmpeg"):
+        print(
+            "Warning: ffmpeg not found on PATH. Video upload will fail. "
+            "Install ffmpeg (see backend/README.md) and restart the server.",
+            flush=True,
+        )
     await init_db()
     n = await reindex_vector_store()
     if n:

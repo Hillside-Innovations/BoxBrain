@@ -9,7 +9,7 @@ Local-first FastAPI server: box CRUD, video upload (ffmpeg → frames), vision +
 - **FastAPI** — API
 - **SQLite** (aiosqlite) — box metadata
 - **ChromaDB** — vector store for semantic search (when available)
-- **ffmpeg** — frame extraction from video (must be installed on system)
+- **ffmpeg** — frame extraction from video (must be installed and on your PATH)
 - **sentence-transformers** — text embeddings (all-MiniLM-L6-v2)
 - **Vision** — BLIP (Salesforce/blip-image-captioning-base) or mock via `MOCK_VISION=1`
 
@@ -60,10 +60,11 @@ source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-Install **ffmpeg** if needed:
+Install **ffmpeg** and ensure it is on your PATH (required for video upload):
 
-- macOS: `brew install ffmpeg`
-- Ubuntu: `sudo apt install ffmpeg`
+- **macOS:** `brew install ffmpeg`
+- **Ubuntu:** `sudo apt install ffmpeg`
+- **Windows:** `winget install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org/download.html); then restart the terminal (and the backend) so PATH is updated.
 
 Optional: copy `.env.example` to `.env` and set `MOCK_VISION=1` to skip downloading the BLIP model (for quick tests).
 

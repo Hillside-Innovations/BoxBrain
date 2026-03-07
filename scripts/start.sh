@@ -36,6 +36,15 @@ echo "Upgrading pip in venv..."
 echo "Ensuring backend dependencies (pip install -r requirements.txt)..."
 (cd "$BACKEND_DIR" && .venv/bin/pip install -r requirements.txt) || true
 
+# Backend needs ffmpeg for video upload (frame extraction)
+if ! command -v ffmpeg &>/dev/null; then
+  echo "Error: ffmpeg is not installed or not on PATH. Video upload will fail without it."
+  echo "  macOS:   brew install ffmpeg"
+  echo "  Ubuntu:  sudo apt install ffmpeg"
+  echo "  Other:   https://ffmpeg.org/download.html"
+  exit 1
+fi
+
 echo "Starting backend (http://127.0.0.1:8000) ..."
 echo "  Python: $("$BACKEND_DIR/.venv/bin/python" --version 2>&1)"
 echo "  (Using real vision model: BLIP. First video upload may download ~1GB if not cached.)"

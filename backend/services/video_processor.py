@@ -32,6 +32,15 @@ class VideoProcessor:
             "-q:v", "2",
             out_pattern,
         ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+        except FileNotFoundError:
+            raise RuntimeError(
+                "ffmpeg not found. Install ffmpeg and add it to your PATH. "
+                "On Windows: install from https://ffmpeg.org/download.html or via winget (winget install ffmpeg), then restart the server."
+            ) from None
+        except subprocess.CalledProcessError as e:
+            stderr = (e.stderr or b"").decode(errors="replace").strip() or "(no stderr)"
+            raise RuntimeError(f"ffmpeg failed: {stderr}") from e
         frames = sorted(out_dir.glob("frame_*.jpg"))
         return frames
