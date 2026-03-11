@@ -1,8 +1,14 @@
 """Describe/caption images to get searchable text. Mock or BLIP (open-source)."""
+import logging
 from pathlib import Path
 from typing import List
 
 from config import settings
+
+logger = logging.getLogger(__name__)
+
+# Fallback when a frame cannot be described (corrupt, too dark, BLIP empty, etc.)
+_FALLBACK_CAPTION = "box contents"
 
 
 class VisionService:
@@ -21,19 +27,39 @@ class VisionService:
         return VisionService._model
 
     def describe_frames(self, frame_paths: List[Path]) -> List[str]:
-        """Return one text description per frame (objects/contents) for embedding."""
+        """Return one text description per frame (objects/contents) for embedding.
+        Failed or empty frames get a fallback caption so the pipeline never crashes and we always return one description per frame.
+        """
+        if not frame_paths:
+            return []
         if settings.mock_vision:
             return [f"box contents frame {i+1}" for i in range(len(frame_paths))]
         processor, model = self._get_model()
         import torch
         from PIL import Image
-        descriptions = []
-        for path in frame_paths:
-            image = Image.open(path).convert("RGB")
-            inputs = processor(images=image, return_tensors="pt")
-            if torch.cuda.is_available():
-                inputs = {k: v.to("cuda") for k, v in inputs.items()}
-            out = model.generate(**inputs, max_length=50)
-            text = processor.decode(out[0], skip_special_tokens=True)
-            descriptions.append(text)
+        descriptions: List[str] = []
+        for i, path in enumerate(frame_paths):
+            try:
+                if not path.exists():
+                    logger.warning("Vision: frame path does not exist %s", path)
+                    descriptions.append(_FALLBACK_CAPTION)
+                    continue
+                image = Image.open(path).convert("RGB")
+                inputs = processor(images=image, return_tensors="pt")
+                if torch.cuda.is_available():
+                    inputs = {k: v.to("cuda") for k, v in inputs.items()}
+                out = model.generate(**inputs, max_length=50)
+                text = (processor.decode(out[0], skip_special_tokens=True) or "").strip()
+                if not text:
+                    logger.debug("Vision: BLIP returned empty caption for frame %s", path.name)
+                    text = _FALLBACK_CAPTION
+                descriptions.append(text)
+            except Exception as e:
+                logger.warning("Vision: failed to describe frame %s: %s", path, e, exc_info=False)
+                descriptions.append(_FALLBACK_CAPTION)
+        if descriptions and all(d.strip().lower() == _FALLBACK_CAPTION for d in descriptions):
+            logger.warning(
+                "Vision: all %d frame(s) used fallback caption (no specific objects detected). Check lighting and video quality.",
+                len(descriptions),
+            )
         return descriptions

@@ -42,5 +42,11 @@ class VideoProcessor:
         except subprocess.CalledProcessError as e:
             stderr = (e.stderr or b"").decode(errors="replace").strip() or "(no stderr)"
             raise RuntimeError(f"ffmpeg failed: {stderr}") from e
-        frames = sorted(out_dir.glob("frame_*.jpg"))
+        # Only return frames that exist and have content (ffmpeg can write 0-byte files on some codecs)
+        frames = sorted(p for p in out_dir.glob("frame_*.jpg") if p.exists() and p.stat().st_size > 0)
+        if not frames:
+            raise RuntimeError(
+                "ffmpeg produced no valid frames. The video may be too short, unsupported, or corrupt. "
+                "Try a 5–10 second MP4 or MOV from your phone."
+            )
         return frames

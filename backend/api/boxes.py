@@ -240,11 +240,21 @@ async def upload_box_video(
             raise HTTPException(status_code=400, detail="Could not extract frames from video")
         # Per-scan quality report
         diagnostics = compute_capture_diagnostics(frames)
-        # Describe frames (vision)
+        # Describe frames (vision) — per-frame errors are handled; we get one caption per frame or fallback
         vs = VisionService()
         raw_descriptions = vs.describe_frames(frames)
-        # Clean up captions a bit to reduce noise before embedding/search
-        descriptions = [_normalize_caption(t) for t in raw_descriptions]
+        if not raw_descriptions:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not describe any frames. Check that the video has visible content and try again.",
+            )
+        # Clean up captions and drop empty so we only store and embed usable content
+        descriptions = [d for d in (_normalize_caption(t) for t in raw_descriptions) if d and d.strip()]
+        if not descriptions:
+            raise HTTPException(
+                status_code=400,
+                detail="No objects could be identified in the video. Try better lighting, a longer scan (5–10 seconds), or a different video.",
+            )
         # Add a label-aware document so search by box label (e.g. "box 1") matches this box
         label_doc = f'Box labeled "{box_label}". Contents: ' + (descriptions[0] if descriptions else "various items.")
         texts_for_store = descriptions + [label_doc]
