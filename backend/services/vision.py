@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 # Fallback when a frame cannot be described (corrupt, too dark, BLIP empty, etc.)
 _FALLBACK_CAPTION = "box contents"
 
+# Strong prompt to force BLIP to name specific items (e.g. "winter coats, scarves") not generic scene ("a pile of clothes")
+_CAPTION_PROMPT = "This box contains "
+_MAX_CAPTION_LENGTH = 72
+_NUM_BEAMS = 4
+
 
 class VisionService:
     _model = None  # lazy-load BLIP
@@ -45,10 +50,14 @@ class VisionService:
                     descriptions.append(_FALLBACK_CAPTION)
                     continue
                 image = Image.open(path).convert("RGB")
-                inputs = processor(images=image, return_tensors="pt")
+                inputs = processor(images=image, text=_CAPTION_PROMPT, return_tensors="pt")
                 if torch.cuda.is_available():
                     inputs = {k: v.to("cuda") for k, v in inputs.items()}
-                out = model.generate(**inputs, max_length=50)
+                out = model.generate(
+                    **inputs,
+                    max_length=_MAX_CAPTION_LENGTH,
+                    num_beams=_NUM_BEAMS,
+                )
                 text = (processor.decode(out[0], skip_special_tokens=True) or "").strip()
                 if not text:
                     logger.debug("Vision: BLIP returned empty caption for frame %s", path.name)

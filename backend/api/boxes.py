@@ -30,6 +30,8 @@ def _normalize_caption(text: str) -> str:
     t = text.strip()
     lower = t.lower()
     prefixes = [
+        "this box contains ",
+        "this image shows ",
         "a photo of",
         "a picture of",
         "an image of",
