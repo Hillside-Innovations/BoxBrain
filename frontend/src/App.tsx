@@ -316,6 +316,32 @@ function BoxesScreen(props: {
   const createLocColor =
     createLocationId != null ? locations?.find((l) => l.id === createLocationId)?.color : undefined
 
+  const [drilldownLocationId, setDrilldownLocationId] = useState<number | null | undefined>(undefined)
+
+  const unassignedColor = '#94a3b8'
+  const unassignedBoxesCount = boxes?.filter((b) => b.location_id == null).length ?? 0
+  const locationsWithBoxes =
+    boxes && locations
+      ? locations
+          .map((loc) => ({
+            id: loc.id,
+            name: loc.name,
+            color: loc.color,
+            count: boxes.filter((b) => b.location_id === loc.id).length,
+          }))
+          .filter((x) => x.count > 0)
+      : []
+
+  const locationItems =
+    drilldownLocationId === undefined
+      ? [
+          ...locationsWithBoxes,
+          ...(unassignedBoxesCount > 0
+            ? [{ id: null as number | null, name: 'Unassigned', color: unassignedColor, count: unassignedBoxesCount }]
+            : []),
+        ]
+      : []
+
   async function onCreate(e: React.FormEvent) {
     e.preventDefault()
     setCreateError(null)
@@ -407,7 +433,7 @@ function BoxesScreen(props: {
           <div>
             <div className="card__title">Your boxes</div>
             <div className="card__subtitle">
-              Tap a box to upload a scan video or update its location.
+              Tap a location to view its boxes. Tap a box to edit it (scan, location, label).
             </div>
           </div>
           <button className="button button--ghost" type="button" onClick={() => void onRefresh()}>
@@ -422,21 +448,72 @@ function BoxesScreen(props: {
         ) : null}
 
         {boxes && boxes.length > 0 ? (
-          <div className="list">
-            {boxes.map((box) => (
-              <button
-                key={box.id}
-                type="button"
-                className={box.id === selectedBoxId ? 'listItem listItem--active' : 'listItem'}
-                onClick={() => onSelectBox(box.id)}
-              >
-                <div className="listItem__title">{box.label}</div>
-                <div className="listItem__subtitle">
-                  <BoxListSubtitle box={box} />
+          <>
+            {drilldownLocationId !== undefined ? (
+              <div className="row row--space" style={{ marginTop: 12 }}>
+                <button
+                  className="button button--ghost"
+                  type="button"
+                  onClick={() => setDrilldownLocationId(undefined)}
+                >
+                  Back
+                </button>
+                <div className="muted">
+                  {drilldownLocationId === null ? 'Unassigned' : locations?.find((l) => l.id === drilldownLocationId)?.name ?? 'Location'}{' '}
+                  • {boxes.filter((b) => b.location_id === drilldownLocationId).length} box
+                  {boxes.filter((b) => b.location_id === drilldownLocationId).length === 1 ? '' : 'es'}
                 </div>
-              </button>
-            ))}
-          </div>
+              </div>
+            ) : null}
+
+            {drilldownLocationId === undefined ? (
+              <div className="list">
+                {locationItems.length === 0 ? (
+                  <div className="muted">No locations yet. Assign a location to a box, or add one in the Locations tab.</div>
+                ) : null}
+
+                {locationItems.map((loc) => (
+                  <button
+                    key={loc.id ?? 'unassigned'}
+                    type="button"
+                    className="listItem"
+                    onClick={() => setDrilldownLocationId(loc.id)}
+                  >
+                    <div className="listItem__title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span
+                        className="location-dot location-dot--lg"
+                        style={{ backgroundColor: loc.color }}
+                        aria-hidden
+                      />
+                      {loc.name}
+                    </div>
+                    <div className="listItem__subtitle">{loc.count} box{loc.count === 1 ? '' : 'es'}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="list">
+                {boxes.filter((b) => b.location_id === drilldownLocationId).length === 0 ? (
+                  <div className="muted">No boxes in this location.</div>
+                ) : null}
+                {boxes
+                  .filter((b) => b.location_id === drilldownLocationId)
+                  .map((box) => (
+                    <button
+                      key={box.id}
+                      type="button"
+                      className={box.id === selectedBoxId ? 'listItem listItem--active' : 'listItem'}
+                      onClick={() => onSelectBox(box.id)}
+                    >
+                      <div className="listItem__title">{box.label}</div>
+                      <div className="listItem__subtitle">
+                        <BoxListSubtitle box={box} />
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </>
         ) : null}
       </section>
 
