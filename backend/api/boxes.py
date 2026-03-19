@@ -15,6 +15,14 @@ from services.vector_store import get_vector_store
 
 router = APIRouter(prefix="/boxes", tags=["boxes"])
 
+_BOX_SELECT = """
+SELECT b.id, b.label, b.location, b.created_at, b.updated_at, b.video_filename,
+       b.scan_frame_count, b.scan_brightness, b.scan_blur_score,
+       b.location_id, l.name AS loc_name, l.color AS loc_color
+FROM boxes b
+LEFT JOIN locations l ON l.id = b.location_id
+"""
+
 
 async def db_conn() -> AsyncGenerator[aiosqlite.Connection, None]:
     from database import get_db
@@ -48,32 +56,53 @@ def _normalize_caption(text: str) -> str:
 
 @router.post("", response_model=BoxResponse)
 async def create_box(body: BoxCreate, conn: aiosqlite.Connection = Depends(db_conn)):
+    if body.location_id is not None:
+        cur = await conn.execute("SELECT 1 FROM locations WHERE id = ?", (body.location_id,))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=400, detail="Invalid location_id")
     try:
         cursor = await conn.execute(
-            "INSERT INTO boxes (label, location) VALUES (?, ?)",
-            (body.label, body.location),
+            "INSERT INTO boxes (label, location_id) VALUES (?, ?)",
+            (body.label, body.location_id),
         )
         await conn.commit()
-        row = await conn.execute(
-            "SELECT id, label, location, created_at, updated_at, video_filename, scan_frame_count, scan_brightness, scan_blur_score FROM boxes WHERE id = ?",
-            (cursor.lastrowid,),
-        )
+        row = await conn.execute(f"{_BOX_SELECT} WHERE b.id = ?", (cursor.lastrowid,))
         r = await row.fetchone()
-        diag = _diagnostics_from_row(r, 5)
-        return BoxResponse(
-            id=r[0],
-            label=r[1],
-            location=r[2],
-            created_at=r[3],
-            updated_at=r[4],
-            has_video=bool(r[5]),
-            contents=[],
-            diagnostics=diag,
-        )
+        return _box_response_from_row(r, [])
     except aiosqlite.IntegrityError as e:
         if "UNIQUE" in str(e):
             raise HTTPException(status_code=409, detail="Box with this label already exists")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+def _box_response_from_row(r, contents: List[str]) -> BoxResponse:
+    """Build BoxResponse from a joined boxes+locations row (see _BOX_SELECT column order)."""
+    bid = r[0]
+    legacy_loc = r[2]
+    lid = r[9]
+    loc_name = r[10]
+    loc_color = r[11]
+    if lid and loc_name:
+        display_loc = loc_name
+        color_out: Optional[str] = loc_color
+    elif lid and not loc_name:
+        display_loc = legacy_loc
+        color_out = None
+    else:
+        display_loc = legacy_loc if legacy_loc else None
+        color_out = None
+    return BoxResponse(
+        id=bid,
+        label=r[1],
+        location=display_loc,
+        location_id=lid,
+        location_color=color_out,
+        created_at=r[3],
+        updated_at=r[4],
+        has_video=bool(r[5]),
+        contents=contents,
+        diagnostics=_diagnostics_from_row(r, 5),
+    )
 
 
 def _diagnostics_from_row(row: tuple, video_filename_idx: int) -> Optional[CaptureDiagnostics]:
@@ -102,47 +131,21 @@ async def _contents_for_boxes(conn: aiosqlite.Connection, box_ids: List[int]) ->
 
 @router.get("", response_model=list[BoxResponse])
 async def list_boxes(conn: aiosqlite.Connection = Depends(db_conn)):
-    cursor = await conn.execute(
-        "SELECT id, label, location, created_at, updated_at, video_filename, scan_frame_count, scan_brightness, scan_blur_score FROM boxes ORDER BY id"
-    )
+    cursor = await conn.execute(f"{_BOX_SELECT} ORDER BY b.id")
     rows = await cursor.fetchall()
     box_ids = [r[0] for r in rows]
     contents_map = await _contents_for_boxes(conn, box_ids)
-    return [
-        BoxResponse(
-            id=r[0],
-            label=r[1],
-            location=r[2],
-            created_at=r[3],
-            updated_at=r[4],
-            has_video=bool(r[5]),
-            contents=contents_map.get(r[0], []),
-            diagnostics=_diagnostics_from_row(r, 5),
-        )
-        for r in rows
-    ]
+    return [_box_response_from_row(r, contents_map.get(r[0], [])) for r in rows]
 
 
 @router.get("/{box_id}", response_model=BoxResponse)
 async def get_box(box_id: int, conn: aiosqlite.Connection = Depends(db_conn)):
-    cursor = await conn.execute(
-        "SELECT id, label, location, created_at, updated_at, video_filename, scan_frame_count, scan_brightness, scan_blur_score FROM boxes WHERE id = ?",
-        (box_id,),
-    )
+    cursor = await conn.execute(f"{_BOX_SELECT} WHERE b.id = ?", (box_id,))
     r = await cursor.fetchone()
     if not r:
         raise HTTPException(status_code=404, detail="Box not found")
     contents_map = await _contents_for_boxes(conn, [box_id])
-    return BoxResponse(
-        id=r[0],
-        label=r[1],
-        location=r[2],
-        created_at=r[3],
-        updated_at=r[4],
-        has_video=bool(r[5]),
-        contents=contents_map.get(box_id, []),
-        diagnostics=_diagnostics_from_row(r, 5),
-    )
+    return _box_response_from_row(r, contents_map.get(box_id, []))
 
 
 @router.get("/{box_id}/image", response_class=FileResponse)
@@ -159,13 +162,25 @@ async def get_box_image(box_id: int):
 
 @router.patch("/{box_id}", response_model=BoxResponse)
 async def update_box(box_id: int, body: BoxUpdate, conn: aiosqlite.Connection = Depends(db_conn)):
-    cursor = await conn.execute(
-        "UPDATE boxes SET location = COALESCE(?, location), updated_at = datetime('now') WHERE id = ?",
-        (body.location, box_id),
-    )
-    await conn.commit()
-    if cursor.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Box not found")
+    updates = body.model_dump(exclude_unset=True)
+    if updates:
+        if "location_id" in updates:
+            lid = updates["location_id"]
+            if lid is not None:
+                cur = await conn.execute("SELECT 1 FROM locations WHERE id = ?", (lid,))
+                if not await cur.fetchone():
+                    raise HTTPException(status_code=400, detail="Invalid location_id")
+            cursor = await conn.execute(
+                "UPDATE boxes SET location_id = ?, location = NULL, updated_at = datetime('now') WHERE id = ?",
+                (lid, box_id),
+            )
+            await conn.commit()
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Box not found")
+    else:
+        cur = await conn.execute("SELECT 1 FROM boxes WHERE id = ?", (box_id,))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=404, detail="Box not found")
     return await get_box(box_id, conn)
 
 

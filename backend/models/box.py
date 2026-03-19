@@ -12,11 +12,13 @@ class CaptureDiagnostics(BaseModel):
 
 class BoxCreate(BaseModel):
     label: str = Field(..., min_length=1, description="Box label e.g. attic_underscore_1")
-    location: Optional[str] = None
+    location_id: Optional[int] = None
 
 
 class BoxUpdate(BaseModel):
-    location: Optional[str] = None
+    """PATCH body: include location_id to set or clear (null). Omit key to leave unchanged."""
+
+    location_id: Optional[int] = None
 
 
 class BoxInDB(BaseModel):
@@ -36,6 +38,8 @@ class BoxResponse(BaseModel):
     id: int
     label: str
     location: Optional[str] = None
+    location_id: Optional[int] = None
+    location_color: Optional[str] = None
     created_at: str
     updated_at: str
     has_video: bool = False

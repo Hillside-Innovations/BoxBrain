@@ -8,11 +8,20 @@ export type BoxResponse = {
   id: number
   label: string
   location: string | null
+  location_id: number | null
+  location_color: string | null
   created_at: string
   updated_at: string
   has_video: boolean
   contents: string[]
   diagnostics?: CaptureDiagnostics | null
+}
+
+export type LocationResponse = {
+  id: number
+  name: string
+  color: string
+  created_at: string
 }
 
 /** URL for the box scan image (first frame). Append cache-buster if needed. */
@@ -82,7 +91,7 @@ export async function listBoxes(): Promise<BoxResponse[]> {
   return await request<BoxResponse[]>('/boxes')
 }
 
-export async function createBox(body: { label: string; location: string | null }): Promise<BoxResponse> {
+export async function createBox(body: { label: string; location_id?: number | null }): Promise<BoxResponse> {
   return await request<BoxResponse>('/boxes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -92,13 +101,29 @@ export async function createBox(body: { label: string; location: string | null }
 
 export async function updateBox(
   boxId: number,
-  body: { location: string | null },
+  body: { location_id: number | null },
 ): Promise<BoxResponse> {
   return await request<BoxResponse>(`/boxes/${boxId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+}
+
+export async function listLocations(): Promise<LocationResponse[]> {
+  return await request<LocationResponse[]>('/locations')
+}
+
+export async function createLocation(body: { name: string; color: string }): Promise<LocationResponse> {
+  return await request<LocationResponse>('/locations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteLocation(locationId: number): Promise<void> {
+  await request<void>(`/locations/${locationId}`, { method: 'DELETE' })
 }
 
 export async function deleteBox(boxId: number): Promise<void> {

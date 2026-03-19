@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
 from reindex import reindex_vector_store
-from api import boxes_router, meta_router, search_router
+from api import boxes_router, locations_router, meta_router, search_router
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(locations_router)
 app.include_router(boxes_router)
 app.include_router(meta_router)
 app.include_router(search_router)

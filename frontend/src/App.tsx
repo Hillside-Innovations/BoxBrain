@@ -1,17 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'react-qr-code'
 import {
   ApiError,
   createBox,
+  createLocation,
   deleteBox,
+  deleteLocation,
   getBoxImageUrl,
   getLanIpv4,
   listBoxes,
+  listLocations,
   searchBoxes,
   updateBox,
   uploadBoxVideo,
   webappUrlForLanHost,
   type BoxResponse,
+  type LocationResponse,
   type SearchHit,
 } from './api'
 
@@ -31,7 +35,9 @@ function getInitialTheme(): Theme {
   return 'dark'
 }
 
-type Tab = 'boxes' | 'search'
+const DEFAULT_LOCATION_COLOR = '#5dd9f7'
+
+type Tab = 'boxes' | 'search' | 'locations'
 
 type PhoneQrState =
   | { status: 'idle' }
@@ -39,11 +45,25 @@ type PhoneQrState =
   | { status: 'ok'; url: string }
   | { status: 'error'; message: string }
 
-function formatBoxSubtitle(box: BoxResponse) {
-  const parts: string[] = []
-  if (box.location) parts.push(box.location)
-  parts.push(box.has_video ? 'scanned' : 'not scanned')
-  return parts.join(' • ')
+function BoxListSubtitle({ box }: { box: BoxResponse }) {
+  return (
+    <>
+      {box.location ? (
+        <>
+          {box.location_color ? (
+            <span
+              className="location-dot"
+              style={{ backgroundColor: box.location_color }}
+              aria-hidden
+            />
+          ) : null}
+          <span>{box.location}</span>
+          {' • '}
+        </>
+      ) : null}
+      {box.has_video ? 'scanned' : 'not scanned'}
+    </>
+  )
 }
 
 function App() {
@@ -56,6 +76,17 @@ function App() {
 
   const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null)
   const [phoneQr, setPhoneQr] = useState<PhoneQrState>({ status: 'idle' })
+  const [locations, setLocations] = useState<LocationResponse[] | null>(null)
+  const [locationsError, setLocationsError] = useState<string | null>(null)
+
+  const refreshLocations = useCallback(async () => {
+    setLocationsError(null)
+    try {
+      setLocations(await listLocations())
+    } catch (e) {
+      setLocationsError(e instanceof Error ? e.message : 'Failed to load locations')
+    }
+  }, [])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -124,6 +155,10 @@ function App() {
     void refreshBoxes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (tab === 'boxes' || tab === 'locations') void refreshLocations()
+  }, [tab, refreshLocations])
 
   return (
     <div className="app">
@@ -202,6 +237,15 @@ function App() {
           >
             Search
           </button>
+          <button
+            type="button"
+            className={tab === 'locations' ? 'tab tab--active' : 'tab'}
+            onClick={() => setTab('locations')}
+            role="tab"
+            aria-selected={tab === 'locations'}
+          >
+            Locations
+          </button>
         </div>
       </header>
 
@@ -215,6 +259,15 @@ function App() {
             onSelectBox={(id) => setSelectedBoxId(id)}
             onRefresh={refreshBoxes}
             selectedBox={selectedBox}
+            locations={locations}
+            locationsError={locationsError}
+            onRefreshLocations={refreshLocations}
+          />
+        ) : tab === 'locations' ? (
+          <LocationsScreen
+            locations={locations}
+            locationsError={locationsError}
+            onRefresh={refreshLocations}
           />
         ) : (
           <SearchScreen
@@ -238,13 +291,30 @@ function BoxesScreen(props: {
   selectedBox: BoxResponse | null
   onSelectBox: (id: number | null) => void
   onRefresh: () => Promise<void>
+  locations: LocationResponse[] | null
+  locationsError: string | null
+  onRefreshLocations: () => Promise<void>
 }) {
-  const { boxes, boxesError, boxesLoading, selectedBoxId, onSelectBox, onRefresh, selectedBox } = props
+  const {
+    boxes,
+    boxesError,
+    boxesLoading,
+    selectedBoxId,
+    onSelectBox,
+    onRefresh,
+    selectedBox,
+    locations,
+    locationsError,
+    onRefreshLocations,
+  } = props
 
   const [createLabel, setCreateLabel] = useState('')
-  const [createLocation, setCreateLocation] = useState('')
+  const [createLocationId, setCreateLocationId] = useState<number | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createLoading, setCreateLoading] = useState(false)
+
+  const createLocColor =
+    createLocationId != null ? locations?.find((l) => l.id === createLocationId)?.color : undefined
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -253,10 +323,10 @@ function BoxesScreen(props: {
     try {
       const box = await createBox({
         label: createLabel.trim(),
-        location: createLocation.trim() || null,
+        location_id: createLocationId,
       })
       setCreateLabel('')
-      setCreateLocation('')
+      setCreateLocationId(null)
       await onRefresh()
       onSelectBox(box.id)
     } catch (err) {
@@ -275,7 +345,8 @@ function BoxesScreen(props: {
       <section className="card">
         <div className="card__title">New box</div>
         <div className="card__subtitle">
-          Label the physical box, then scan a 5–10s video of the open box. No item lists.
+          Label the physical box, then scan a 5–10s video of the open box. Pick a saved location or add
+          one under the Locations tab.
         </div>
         <form className="form" onSubmit={onCreate}>
           <label className="field">
@@ -293,12 +364,36 @@ function BoxesScreen(props: {
           </label>
           <label className="field">
             <div className="field__label">Location (optional)</div>
-            <input
-              className="input"
-              value={createLocation}
-              onChange={(e) => setCreateLocation(e.target.value)}
-              placeholder="e.g. garage shelf"
-            />
+            <div className="field-row">
+              <select
+                className="input input--select"
+                value={createLocationId ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setCreateLocationId(v === '' ? null : Number(v))
+                }}
+                disabled={locations == null}
+              >
+                <option value="">None</option>
+                {(locations ?? []).map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+              {createLocColor ? (
+                <span
+                  className="location-dot location-dot--lg"
+                  style={{ backgroundColor: createLocColor }}
+                  title={createLocColor}
+                  aria-hidden
+                />
+              ) : null}
+            </div>
+            {locationsError ? <div className="field__help field__help--error">{locationsError}</div> : null}
+            {locations && locations.length === 0 ? (
+              <div className="field__help">No saved locations yet — create some in the Locations tab.</div>
+            ) : null}
           </label>
           {createError ? <div className="alert alert--error">{createError}</div> : null}
           <button className="button button--primary" type="submit" disabled={createLoading}>
@@ -336,7 +431,9 @@ function BoxesScreen(props: {
                 onClick={() => onSelectBox(box.id)}
               >
                 <div className="listItem__title">{box.label}</div>
-                <div className="listItem__subtitle">{formatBoxSubtitle(box)}</div>
+                <div className="listItem__subtitle">
+                  <BoxListSubtitle box={box} />
+                </div>
               </button>
             ))}
           </div>
@@ -347,7 +444,10 @@ function BoxesScreen(props: {
         <BoxDetailCard
           key={selectedBox.id}
           box={selectedBox}
+          locations={locations}
+          locationsError={locationsError}
           onRefresh={onRefresh}
+          onRefreshLocations={onRefreshLocations}
           onDeleted={() => onSelectBox(null)}
         />
       ) : null}
@@ -357,13 +457,23 @@ function BoxesScreen(props: {
 
 function BoxDetailCard(props: {
   box: BoxResponse
+  locations: LocationResponse[] | null
+  locationsError: string | null
   onRefresh: () => Promise<void>
+  onRefreshLocations: () => Promise<void>
   onDeleted: () => void
 }) {
-  const { box, onRefresh, onDeleted } = props
-  const [location, setLocation] = useState(box.location ?? '')
+  const { box, locations, locationsError, onRefresh, onRefreshLocations, onDeleted } = props
+  const [locationId, setLocationId] = useState<number | null>(box.location_id ?? null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLocationId(box.location_id ?? null)
+  }, [box.id, box.location_id])
+
+  const detailLocColor =
+    locationId != null ? locations?.find((l) => l.id === locationId)?.color : undefined
 
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -377,8 +487,9 @@ function BoxDetailCard(props: {
     setSaveError(null)
     setSaving(true)
     try {
-      await updateBox(box.id, { location: location.trim() || null })
+      await updateBox(box.id, { location_id: locationId })
       await onRefresh()
+      void onRefreshLocations()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to update')
     } finally {
@@ -459,12 +570,33 @@ function BoxDetailCard(props: {
       <form className="form" onSubmit={onSaveLocation}>
         <label className="field">
           <div className="field__label">Location</div>
-          <input
-            className="input"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="e.g. garage shelf"
-          />
+          <div className="field-row">
+            <select
+              className="input input--select"
+              value={locationId ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                setLocationId(v === '' ? null : Number(v))
+              }}
+              disabled={locations == null}
+            >
+              <option value="">None</option>
+              {(locations ?? []).map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+            {detailLocColor ? (
+              <span
+                className="location-dot location-dot--lg"
+                style={{ backgroundColor: detailLocColor }}
+                title={detailLocColor}
+                aria-hidden
+              />
+            ) : null}
+          </div>
+          {locationsError ? <div className="field__help field__help--error">{locationsError}</div> : null}
         </label>
         {saveError ? <div className="alert alert--error">{saveError}</div> : null}
         <button className="button" type="submit" disabled={saving}>
@@ -530,6 +662,127 @@ function BoxDetailCard(props: {
         </button>
       </div>
     </section>
+  )
+}
+
+function LocationsScreen(props: {
+  locations: LocationResponse[] | null
+  locationsError: string | null
+  onRefresh: () => Promise<void>
+}) {
+  const { locations, locationsError, onRefresh } = props
+  const [locName, setLocName] = useState('')
+  const [locColor, setLocColor] = useState(DEFAULT_LOCATION_COLOR)
+  const [creating, setCreating] = useState(false)
+  const [createErr, setCreateErr] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  async function onCreateLocation(e: React.FormEvent) {
+    e.preventDefault()
+    const name = locName.trim()
+    if (!name) return
+    setCreateErr(null)
+    setCreating(true)
+    try {
+      await createLocation({ name, color: locColor })
+      setLocName('')
+      setLocColor(DEFAULT_LOCATION_COLOR)
+      await onRefresh()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setCreateErr('A location with that name already exists.')
+      } else {
+        setCreateErr(err instanceof Error ? err.message : 'Failed to create location')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="stack">
+      <section className="card">
+        <div className="card__title">New location</div>
+        <div className="card__subtitle">
+          Name a place (room, shelf, storage unit) and pick a color. Boxes can be assigned from a
+          dropdown.
+        </div>
+        <form className="form" onSubmit={onCreateLocation}>
+          <label className="field">
+            <div className="field__label">Name</div>
+            <input
+              className="input"
+              value={locName}
+              onChange={(e) => setLocName(e.target.value)}
+              placeholder="e.g. Garage — east wall"
+              required
+            />
+          </label>
+          <label className="field">
+            <div className="field__label">Color</div>
+            <div className="field-row field-row--color">
+              <input
+                type="color"
+                className="input input--color"
+                value={locColor}
+                onChange={(e) => setLocColor(e.target.value)}
+                aria-label="Location color"
+              />
+              <span className="mono input--color-hex">{locColor}</span>
+            </div>
+          </label>
+          {createErr ? <div className="alert alert--error">{createErr}</div> : null}
+          {locationsError ? <div className="alert alert--error">{locationsError}</div> : null}
+          <button className="button button--primary" type="submit" disabled={creating}>
+            {creating ? 'Saving…' : 'Save location'}
+          </button>
+        </form>
+      </section>
+
+      <section className="card">
+        <div className="card__title">Saved locations</div>
+        <div className="card__subtitle">Used in the box list and when creating or editing a box.</div>
+        {locations == null ? (
+          <div className="muted">Loading…</div>
+        ) : locations.length === 0 ? (
+          <div className="muted">No locations yet. Add one above.</div>
+        ) : (
+          <ul className="locations-list">
+            {locations.map((loc) => (
+              <li key={loc.id} className="locations-list__item">
+                <span
+                  className="location-dot location-dot--lg"
+                  style={{ backgroundColor: loc.color }}
+                  aria-hidden
+                />
+                <span className="locations-list__name">{loc.name}</span>
+                <code className="locations-list__hex mono">{loc.color}</code>
+                <button
+                  type="button"
+                  className="button button--ghost button--compact"
+                  disabled={deletingId === loc.id}
+                  onClick={async () => {
+                    if (!window.confirm(`Remove location “${loc.name}”? Boxes using it will have no location.`))
+                      return
+                    setDeletingId(loc.id)
+                    try {
+                      await deleteLocation(loc.id)
+                      await onRefresh()
+                    } catch (err) {
+                      window.alert(err instanceof Error ? err.message : 'Failed to remove')
+                    } finally {
+                      setDeletingId(null)
+                    }
+                  }}
+                >
+                  {deletingId === loc.id ? 'Removing…' : 'Remove'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   )
 }
 
