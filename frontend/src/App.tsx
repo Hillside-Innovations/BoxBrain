@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
+import QRCode from 'react-qr-code'
 import {
   ApiError,
   createBox,
   deleteBox,
   getBoxImageUrl,
+  getLanIpv4,
   listBoxes,
   searchBoxes,
   updateBox,
   uploadBoxVideo,
+  webappUrlForLanHost,
   type BoxResponse,
   type SearchHit,
 } from './api'
@@ -30,6 +33,12 @@ function getInitialTheme(): Theme {
 
 type Tab = 'boxes' | 'search'
 
+type PhoneQrState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; url: string }
+  | { status: 'error'; message: string }
+
 function formatBoxSubtitle(box: BoxResponse) {
   const parts: string[] = []
   if (box.location) parts.push(box.location)
@@ -39,12 +48,14 @@ function formatBoxSubtitle(box: BoxResponse) {
 
 function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [showPhoneQr, setShowPhoneQr] = useState(false)
   const [tab, setTab] = useState<Tab>('boxes')
   const [boxes, setBoxes] = useState<BoxResponse[] | null>(null)
   const [boxesError, setBoxesError] = useState<string | null>(null)
   const [boxesLoading, setBoxesLoading] = useState(false)
 
   const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null)
+  const [phoneQr, setPhoneQr] = useState<PhoneQrState>({ status: 'idle' })
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -59,6 +70,41 @@ function App() {
     () => boxes?.find((b) => b.id === selectedBoxId) ?? null,
     [boxes, selectedBoxId],
   )
+
+  useEffect(() => {
+    if (!showPhoneQr) {
+      setPhoneQr({ status: 'idle' })
+      return
+    }
+    let cancelled = false
+    setPhoneQr({ status: 'loading' })
+    ;(async () => {
+      try {
+        const ip = await getLanIpv4()
+        if (cancelled) return
+        if (!ip) {
+          setPhoneQr({
+            status: 'error',
+            message:
+              'Could not detect this computer’s LAN address. Check Wi‑Fi/ethernet, then try again.',
+          })
+          return
+        }
+        setPhoneQr({ status: 'ok', url: webappUrlForLanHost(ip) })
+      } catch {
+        if (!cancelled) {
+          setPhoneQr({
+            status: 'error',
+            message:
+              'Could not reach the API to detect the LAN address. Is the backend running (port 8000)?',
+          })
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showPhoneQr])
 
   async function refreshBoxes() {
     setBoxesError(null)
@@ -84,16 +130,59 @@ function App() {
       <header className="topbar">
         <div className="topbar__row">
           <div className="topbar__title">BoxBrain</div>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
+          <div className="topbar__actions">
+            <button
+              type="button"
+              className="qr-link-toggle"
+              onClick={() => setShowPhoneQr((v) => !v)}
+              aria-expanded={showPhoneQr}
+              aria-controls="phone-qr-panel"
+              title={
+                showPhoneQr
+                  ? 'Hide QR code for opening this app on your phone'
+                  : 'Show QR code — opens this app using this computer’s LAN address'
+              }
+            >
+              {showPhoneQr ? 'Hide QR' : 'Phone QR'}
+            </button>
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+          </div>
         </div>
+        {showPhoneQr ? (
+          <div
+            id="phone-qr-panel"
+            className="qr-panel"
+            role="region"
+            aria-label="Open BoxBrain on your phone"
+          >
+            {phoneQr.status !== 'ok' && phoneQr.status !== 'error' ? (
+              <div className="muted">Detecting this computer’s LAN address…</div>
+            ) : null}
+            {phoneQr.status === 'error' ? <div className="alert alert--error">{phoneQr.message}</div> : null}
+            {phoneQr.status === 'ok' ? (
+              <>
+                <p className="qr-panel__hint">
+                  Scan on the same Wi‑Fi. The link uses this machine’s LAN IP and the same port as this
+                  page (e.g. <span className="mono">:5173</span> for Vite).
+                </p>
+                <div className="qr-panel__code">
+                  <QRCode value={phoneQr.url} size={200} level="M" bgColor="#ffffff" fgColor="#000000" />
+                </div>
+                <div className="qr-panel__url mono" title={phoneQr.url}>
+                  {phoneQr.url}
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         <div className="topbar__tabs" role="tablist" aria-label="Primary">
           <button
             type="button"

@@ -129,3 +129,17 @@ export async function searchBoxes(q: string): Promise<SearchResponse> {
   return await request<SearchResponse>(`/search?${qs.toString()}`)
 }
 
+export type LanIpv4Response = { lan_ipv4: string | null }
+
+export async function getLanIpv4(): Promise<string | null> {
+  const data = await request<LanIpv4Response>('/meta/lan-ipv4')
+  return data.lan_ipv4 ?? null
+}
+
+/** Web app URL reachable on the LAN, using this machine’s IPv4 and the current page port/path. */
+export function webappUrlForLanHost(lanIpv4: string): string {
+  const { protocol, pathname, search, port } = window.location
+  const host = port ? `${lanIpv4}:${port}` : lanIpv4
+  return `${protocol}//${host}${pathname}${search}`
+}
+

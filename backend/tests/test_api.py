@@ -18,6 +18,14 @@ def test_health(client: TestClient):
     assert r.json() == {"status": "ok"}
 
 
+def test_meta_lan_ipv4(client: TestClient):
+    r = client.get("/meta/lan-ipv4")
+    assert r.status_code == 200
+    data = r.json()
+    assert "lan_ipv4" in data
+    assert data["lan_ipv4"] is None or isinstance(data["lan_ipv4"], str)
+
+
 def test_create_box(client: TestClient):
     r = client.post("/boxes", json={"label": "test_box_1", "location": "garage"})
     assert r.status_code == 200
