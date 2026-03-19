@@ -163,24 +163,70 @@ async def get_box_image(box_id: int):
 @router.patch("/{box_id}", response_model=BoxResponse)
 async def update_box(box_id: int, body: BoxUpdate, conn: aiosqlite.Connection = Depends(db_conn)):
     updates = body.model_dump(exclude_unset=True)
-    if updates:
+
+    if not updates:
+        cur = await conn.execute("SELECT 1 FROM boxes WHERE id = ?", (box_id,))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=404, detail="Box not found")
+        return await get_box(box_id, conn)
+
+    # Normalize + validate input.
+    label: Optional[str] = updates.get("label")
+    if label is not None:
+        label = label.strip()
+        if not label:
+            raise HTTPException(status_code=400, detail="label cannot be empty")
+
+    if "location_id" in updates:
+        lid = updates["location_id"]
+        if lid is not None:
+            cur = await conn.execute("SELECT 1 FROM locations WHERE id = ?", (lid,))
+            if not await cur.fetchone():
+                raise HTTPException(status_code=400, detail="Invalid location_id")
+
+    # Apply updates first, commit once (so we don't partially update on error).
+    try:
+        if label is not None:
+            try:
+                cursor = await conn.execute(
+                    "UPDATE boxes SET label = ?, updated_at = datetime('now') WHERE id = ?",
+                    (label, box_id),
+                )
+            except aiosqlite.IntegrityError as e:
+                if "UNIQUE" in str(e):
+                    raise HTTPException(status_code=409, detail="Box with this label already exists")
+                raise HTTPException(status_code=400, detail=str(e))
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Box not found")
+
         if "location_id" in updates:
             lid = updates["location_id"]
-            if lid is not None:
-                cur = await conn.execute("SELECT 1 FROM locations WHERE id = ?", (lid,))
-                if not await cur.fetchone():
-                    raise HTTPException(status_code=400, detail="Invalid location_id")
             cursor = await conn.execute(
                 "UPDATE boxes SET location_id = ?, location = NULL, updated_at = datetime('now') WHERE id = ?",
                 (lid, box_id),
             )
-            await conn.commit()
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Box not found")
-    else:
-        cur = await conn.execute("SELECT 1 FROM boxes WHERE id = ?", (box_id,))
-        if not await cur.fetchone():
-            raise HTTPException(status_code=404, detail="Box not found")
+
+        await conn.commit()
+    except HTTPException:
+        raise
+
+    # Keep search results correct if the box label changed.
+    if label is not None:
+        cur = await conn.execute(
+            "SELECT item_text FROM box_contents WHERE box_id = ? ORDER BY rowid",
+            (box_id,),
+        )
+        texts = [r[0] for r in await cur.fetchall()]
+        if texts:
+            es = EmbeddingService()
+            store = get_vector_store()
+            label_doc = f'Box labeled "{label}". Contents: ' + "; ".join(texts[:5])
+            texts_with_label = texts + [label_doc]
+            embeddings = es.embed(texts_with_label)
+            store.add(box_id, label, texts_with_label, embeddings)
+
     return await get_box(box_id, conn)
 
 

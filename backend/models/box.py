@@ -16,8 +16,15 @@ class BoxCreate(BaseModel):
 
 
 class BoxUpdate(BaseModel):
-    """PATCH body: include location_id to set or clear (null). Omit key to leave unchanged."""
+    """PATCH body:
 
+    - `location_id`: set/clear the saved location for this box (null clears).
+    - `label`: rename the physical box (must remain unique).
+
+    Omit keys you don't want to change.
+    """
+
+    label: Optional[str] = None
     location_id: Optional[int] = None
 
 

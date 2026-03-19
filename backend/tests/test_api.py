@@ -126,6 +126,24 @@ def test_patch_box_clear_location(client: TestClient):
     assert r.json()["location_id"] is None
 
 
+def test_patch_box_label(client: TestClient):
+    create = client.post("/boxes", json={"label": "rename_me"})
+    assert create.status_code == 200
+    bid = create.json()["id"]
+    r = client.patch(f"/boxes/{bid}", json={"label": "renamed"})
+    assert r.status_code == 200
+    assert r.json()["label"] == "renamed"
+
+
+def test_patch_box_label_duplicate(client: TestClient):
+    b1 = client.post("/boxes", json={"label": "one"})
+    b2 = client.post("/boxes", json={"label": "two"})
+    bid2 = b2.json()["id"]
+    r = client.patch(f"/boxes/{bid2}", json={"label": "one"})
+    assert r.status_code == 409
+    assert "already exists" in r.json()["detail"] or "already exists" in r.json()["detail"].lower()
+
+
 def test_search_empty(client: TestClient):
     r = client.get("/search", params={"q": "wrench"})
     assert r.status_code == 200

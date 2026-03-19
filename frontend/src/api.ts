@@ -101,7 +101,7 @@ export async function createBox(body: { label: string; location_id?: number | nu
 
 export async function updateBox(
   boxId: number,
-  body: { location_id: number | null },
+  body: { location_id?: number | null; label?: string },
 ): Promise<BoxResponse> {
   return await request<BoxResponse>(`/boxes/${boxId}`, {
     method: 'PATCH',

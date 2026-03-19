@@ -464,6 +464,14 @@ function BoxDetailCard(props: {
   onDeleted: () => void
 }) {
   const { box, locations, locationsError, onRefresh, onRefreshLocations, onDeleted } = props
+  const [labelDraft, setLabelDraft] = useState(box.label)
+  const [labelSaving, setLabelSaving] = useState(false)
+  const [labelError, setLabelError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLabelDraft(box.label)
+  }, [box.id, box.label])
+
   const [locationId, setLocationId] = useState<number | null>(box.location_id ?? null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -494,6 +502,20 @@ function BoxDetailCard(props: {
       setSaveError(err instanceof Error ? err.message : 'Failed to update')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function onSaveLabel(e: React.FormEvent) {
+    e.preventDefault()
+    setLabelError(null)
+    setLabelSaving(true)
+    try {
+      await updateBox(box.id, { label: labelDraft.trim() })
+      await onRefresh()
+    } catch (err) {
+      setLabelError(err instanceof Error ? err.message : 'Failed to update label')
+    } finally {
+      setLabelSaving(false)
     }
   }
 
@@ -532,6 +554,26 @@ function BoxDetailCard(props: {
         <span className="mono">#{box.id}</span> • <span className="mono">{box.label}</span> •{' '}
         {box.has_video ? 'Scanned' : 'Not scanned yet'}
       </div>
+
+      <form className="form" onSubmit={onSaveLabel}>
+        <label className="field">
+          <div className="field__label">Box label</div>
+          <input
+            className="input"
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            placeholder="e.g. attic_underscore_1"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
+        </label>
+        {labelError ? <div className="alert alert--error">{labelError}</div> : null}
+        <button className="button button--primary" type="submit" disabled={labelSaving}>
+          {labelSaving ? 'Saving…' : 'Save label'}
+        </button>
+      </form>
 
       {box.has_video ? (
         <div className="box-image-wrap">
